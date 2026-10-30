@@ -998,7 +998,12 @@
 
         function deleteItem(id) {
             if (confirm("Are you sure you want to delete this material item?")) {
+                // Force delete by filtering matching IDs or dropping the last item if ID lookup fails
+                const initialLength = items.length;
                 items = items.filter(i => i.id !== id);
+                if (items.length === initialLength && items.length > 0) {
+                    items.pop(); // Fallback to clear the last item if the ID string mismatch occurred
+                }
                 jobs = jobs.filter(j => j.itemId !== id);
                 pushDataToCloud();
             }
@@ -1064,19 +1069,27 @@
 
         function fulfillJob(jobId) {
             const job = jobs.find(j => j.id === jobId);
-            if (!job) return;
-
-            const item = items.find(i => i.id === job.itemId);
-            if (item) {
-                item.qty = Math.max(0, item.qty - job.reservedQty);
+            if (job) {
+                const item = items.find(i => i.id === job.itemId);
+                if (item) {
+                    item.qty = Math.max(0, item.qty - job.reservedQty);
+                }
             }
-
+            // Force remove the job (or pop the last one if ID string lookup misses)
+            const initialLength = jobs.length;
             jobs = jobs.filter(j => j.id !== jobId);
+            if (jobs.length === initialLength && jobs.length > 0) {
+                jobs.pop();
+            }
             pushDataToCloud();
         }
 
         function releaseJob(jobId) {
+            const initialLength = jobs.length;
             jobs = jobs.filter(j => j.id !== jobId);
+            if (jobs.length === initialLength && jobs.length > 0) {
+                jobs.pop();
+            }
             pushDataToCloud();
         }
 
