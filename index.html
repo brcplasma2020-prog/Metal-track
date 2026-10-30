@@ -1,1222 +1,422 @@
 <!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>MetalTrack - Real-Time Cloud Inventory</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MetalTrack - Real-Time Cloud Inventory</title>
 
-<!-- Embedded PWA Manifest -->
-<link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIk1ldGFsVHJhY2sgSW52ZW50b3J5IiwKICAic2hvcnRfbmFtZSI6ICJNZXRhbFRyYWNrIiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwYjBmMTkiLAogICJ0aGVtZV9jb2xvciI6ICIjMGIwZjE5IiwKICAib3JpZW50YXRpb24iOiAicG9ydHJhaXQiLAogICJpY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBIMTJaeUI0SnljT1pXRmtKeUJqY21sdGIyNDlNVEF3SURFd01IeHpPdzA9IiwKICAgICAgInNpemVzIjogIjE5MngxOTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIiwKICAgICAgInB1cnBvc2UiOiAiYW55IG1hc2thYmxlIgogICAgfQogIF0KfQ==">
+    <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIk1ldGFsVHJhY2sgSW52ZW50b3J5IiwKICAic2hvcnRfbmFtZSI6ICJNZXRhbFRyYWNrIiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwYjBmMTkiLAogICJ0aGVtZV9jb2xvciI6ICIjMGIwZjE5IiwKICAib3JpZW50YXRpb24iOiAicG9ydHJhaXQiLAogICJpY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBIMTJaeUI0SnljT1pXRmtKeUJqY21sdGIyNDlNVEF3SURFd01IeHpPdzA9IiwKICAgICAgInNpemVzIjogIjE5MngxOTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIiwKICAgICAgInB1cnBvc2UiOiAiYW55IG1hc2thYmxlIgogICAgfQogIF0KfQ==">
+    
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0b0f19">
 
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0b0f19">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        metal: {
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                            950: '#020617'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
 
-<!-- Tailwind CSS CDN -->
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-tailwind.config = {
-darkMode: 'class',
-theme: {
-extend: {
-colors: {
-metal: {
-50: '#f8fafc',
-100: '#f1f5f9',
-800: '#1e293b',
-900: '#0f172a',
-950: '#020617'
-}
-}
-}
-}
-}
-</script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
-<!-- Phosphor Icons CDN -->
-<script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0f19;
+            color: #f1f5f9;
+            -webkit-tap-highlight-color: transparent;
+        }
 
-<!-- Firebase Compat SDKs (App & Realtime Database) -->
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
 
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+        html, body {
+            max-width: 100vw;
+            overflow-x: hidden;
+        }
 
-body {
-font-family: 'Inter', sans-serif;
-background-color: #0b0f19;
-color: #f1f5f9;
--webkit-tap-highlight-color: transparent;
-}
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
 
-.font-mono {
-font-family: 'JetBrains Mono', monospace;
-}
-
-/* Prevent horizontal scroll globally */
-html, body {
-max-width: 100vw;
-overflow-x: hidden;
-}
-
-/* Custom scrollbars */
-::-webkit-scrollbar {
-width: 6px;
-height: 6px;
-}
-::-webkit-scrollbar-track {
-background: #0f172a;
-}
-::-webkit-scrollbar-thumb {
-background: #334155;
-border-radius: 4px;
-}
-
-.modal-backdrop {
-background-color: rgba(2, 6, 23, 0.85);
-backdrop-filter: blur(4px);
-}
-</style>
+        .modal-backdrop {
+            background-color: rgba(2, 6, 23, 0.85);
+            backdrop-filter: blur(4px);
+        }
+    </style>
 </head>
 <body class="min-h-screen flex flex-col pb-12 antialiased selection:bg-indigo-500 selection:text-white">
 
-<!-- TOP NAVIGATION BAR -->
-<header class="sticky top-0 z-30 bg-slate-900/90 border-b border-slate-800 backdrop-blur-md px-4 py-3 max-w-full">
-<div class="max-w-6xl mx-auto flex items-center justify-between gap-2">
-
-<!-- Brand Logo & Connection Status -->
-<div class="flex items-center gap-3">
-<div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-<i class="ph-bold ph-steel-series text-xl text-white"></i>
-</div>
-<div>
-<h1 class="text-base font-bold text-slate-100 leading-tight">MetalTrack</h1>
-<div id="connection-status" class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[11px] font-medium">
-<span id="connection-dot" class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
-<span id="connection-text">Connecting Cloud...</span>
-</div>
-</div>
-</div>
-
-<!-- Action Controls -->
-<div class="flex items-center gap-1.5 sm:gap-2">
-<!-- Gemini Assistant Button -->
-<button id="btn-open-gemini" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-md shadow-purple-900/30 transition-all active:scale-95">
-<i class="ph-bold ph-sparkle text-amber-300"></i>
-<span class="hidden xs:inline">Gemini AI</span>
-</button>
-
-<!-- QR Sync Button -->
-<button id="btn-open-sync" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-sm transition-all" title="Sync via QR Code">
-<i class="ph-bold ph-qr-code text-indigo-400"></i>
-</button>
-
-<!-- Add New Material Button -->
-<button id="btn-open-add-modal" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-900/30 transition-all active:scale-95">
-<i class="ph-bold ph-plus"></i>
-<span>New Item</span>
-</button>
-</div>
-</div>
-</header>
-
-<!-- MAIN APP CONTAINER -->
-<main class="flex-1 max-w-6xl w-full mx-auto px-3 sm:px-6 py-4 space-y-4">
-
-<!-- TAB NAVIGATION -->
-<div class="flex items-center gap-1 p-1 bg-slate-900 rounded-xl border border-slate-800 overflow-x-auto max-w-full">
-<button data-tab="dashboard" class="tab-btn flex-1 min-w-[100px] flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all bg-indigo-600 text-white shadow-md">
-<i class="ph-bold ph-squares-four"></i>
-<span>Dashboard</span>
-</button>
-<button data-tab="sheets" class="tab-btn flex-1 min-w-[100px] flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all">
-<i class="ph-bold ph-bounding-box"></i>
-<span>Sheet Metal</span>
-</button>
-<button data-tab="tubing" class="tab-btn flex-1 min-w-[100px] flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all">
-<i class="ph-bold ph-cylinder"></i>
-<span>Tubing & Pipe</span>
-</button>
-<button data-tab="remnants" class="tab-btn flex-1 min-w-[100px] flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all">
-<i class="ph-bold ph-scissors"></i>
-<span>Remnants</span>
-</button>
-<button data-tab="jobs" class="tab-btn flex-1 min-w-[100px] flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all">
-<i class="ph-bold ph-bookmark-simple"></i>
-<span>Job Reserves</span>
-</button>
-</div>
-
-<!-- SEARCH AND FILTER BAR -->
-<div id="search-filter-container" class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center justify-between">
-<div class="relative flex-1">
-<i class="ph-bold ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"></i>
-<input type="text" id="input-search" placeholder="Search SKU, material, gauge, location..." class="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors">
-</div>
-<div class="flex items-center gap-2">
-<label class="flex items-center gap-2 px-3 py-2 bg-slate-900 rounded-xl border border-slate-800 text-xs text-slate-300 cursor-pointer hover:bg-slate-800/50 transition-colors">
-<input type="checkbox" id="checkbox-low-stock" class="rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-0">
-<span>Low Stock Only</span>
-</label>
-</div>
-</div>
-
-<!-- VIEW 1: MAIN DASHBOARD TAB -->
-<section id="tab-content-dashboard" class="tab-content space-y-4">
-<!-- Metric Cards -->
-<div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-<div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-<div class="text-slate-400 text-xs font-medium uppercase tracking-wider">Est. Stock Valuation</div>
-<div id="dash-val-total" class="text-xl sm:text-2xl font-bold text-emerald-400 mt-1 font-mono">$`0.00</div>
-<div class="text-[11px] text-slate-500 mt-1">Based on unit costs</div>
-</div>
-<div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-<div class="text-slate-400 text-xs font-medium uppercase tracking-wider">Total SKUs</div>
-<div id="dash-total-items" class="text-xl sm:text-2xl font-bold text-indigo-400 mt-1 font-mono">0</div>
-<div class="text-[11px] text-slate-500 mt-1">Unique stock items</div>
-</div>
-<div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-<div class="text-slate-400 text-xs font-medium uppercase tracking-wider">Active Job Reserves</div>
-<div id="dash-active-jobs" class="text-xl sm:text-2xl font-bold text-amber-400 mt-1 font-mono">0</div>
-<div class="text-[11px] text-slate-500 mt-1">Allocated to projects</div>
-</div>
-<div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-<div class="text-slate-400 text-xs font-medium uppercase tracking-wider">Low / Out Alerts</div>
-<div id="dash-low-stock" class="text-xl sm:text-2xl font-bold text-rose-400 mt-1 font-mono">0</div>
-<div class="text-[11px] text-slate-500 mt-1">Requires reorder</div>
-</div>
-</div>
-
-<!-- Inventory Breakdown by Type -->
-<div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-<h2 class="text-sm font-bold text-slate-200 uppercase tracking-wider">Stock Summary</h2>
-<div id="dashboard-type-summary" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
-</div>
-
-<!-- Recent Job Allocations Feed -->
-<div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-<div class="flex items-center justify-between">
-<h2 class="text-sm font-bold text-slate-200 uppercase tracking-wider">Recent Job Allocations</h2>
-<button onclick="switchTab('jobs')" class="text-xs text-indigo-400 hover:underline">View All Jobs →</button>
-</div>
-<div id="dashboard-recent-jobs" class="space-y-2 text-xs"></div>
-</div>
-</section>
-
-<!-- VIEW 2: MATERIAL LISTS (Sheets, Tubing, Remnants) -->
-<section id="tab-content-materials" class="tab-content hidden space-y-3">
-<div id="materials-container" class="space-y-3"></div>
-<div id="empty-materials-state" class="hidden text-center py-12 bg-slate-900/50 rounded-xl border border-dashed border-slate-800">
-<i class="ph-bold ph-package text-4xl text-slate-600 mb-2"></i>
-<p class="text-sm text-slate-400">No inventory items found in this category.</p>
-<button onclick="openAddModal()" class="mt-3 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold">Add First Item</button>
-</div>
-</section>
-
-<!-- VIEW 3: JOB RESERVES TAB -->
-<section id="tab-content-jobs" class="tab-content hidden space-y-3">
-<div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-<h2 class="text-sm font-bold text-slate-200 mb-3">Active Job Material Reserves</h2>
-<div id="jobs-container" class="space-y-3"></div>
-<div id="empty-jobs-state" class="hidden text-center py-8 text-slate-500 text-xs">
-No active job reserves found. Allocate material directly from item cards!
-</div>
-</div>
-</section>
-
-</main>
-
-<!-- MODAL 1: ADD / EDIT MATERIAL ITEM -->
-<div id="modal-item" class="fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-3 hidden">
-<div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
-<div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
-<h3 id="modal-item-title" class="text-base font-bold text-slate-100">Add New Inventory Item</h3>
-<button onclick="closeModal('modal-item')" class="text-slate-400 hover:text-slate-200"><i class="ph-bold ph-x text-lg"></i></button>
-</div>
-
-<form id="form-item" class="p-5 space-y-4 overflow-y-auto flex-1 text-xs">
-<input type="hidden" id="item-id">
-
-<div>
-<label class="block text-slate-400 mb-1 font-medium">Category Type</label>
-<select id="item-category" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500">
-<option value="sheets">Sheet Metal</option>
-<option value="tubing">Tubing & Pipe</option>
-<option value="remnants">Remnant / Drop</option>
-</select>
-</div>
-
-<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-<div>
-<label class="block text-slate-400 mb-1 font-medium">Material Name *</label>
-<input type="text" id="item-name" placeholder="e.g. Mild Steel Sheet A36" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500">
-</div>
-<div>
-<label class="block text-slate-400 mb-1 font-medium">SKU / ID</label>
-<input type="text" id="item-sku" placeholder="Auto-generated if blank" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500 font-mono">
-</div>
-</div>
-
-<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-<div>
-<label class="block text-slate-400 mb-1 font-medium">Gauge / Thickness</label>
-<input type="text" id="item-thickness" placeholder='e.g. 14 Gauge (0.075")' class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500">
-</div>
-<div>
-<label class="block text-slate-400 mb-1 font-medium">Dimensions / Size</label>
-<input type="text" id="item-dimensions" placeholder='e.g. 48" x 96" or 1200mm x 2400mm' class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500">
-</div>
-</div>
-
-<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-<div>
-<label class="block text-slate-400 mb-1 font-medium">Unit Price (`$)</label>
-<input type="number" step="0.01" id="item-price" placeholder="0.00" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500 font-mono">
-</div>
-<div>
-<label class="block text-slate-400 mb-1 font-medium">Price Unit Basis</label>
-<select id="item-price-unit" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500">
-<option value="sheet">Per Sheet</option>
-<option value="m2">Per Sq. Meter (m²)</option>
-<option value="sqft">Per Sq. Foot (ft²)</option>
-<option value="stick">Per Stick / Pipe</option>
-<option value="foot">Per Foot (/ft)</option>
-<option value="unit">Per Unit / Each</option>
-</select>
-</div>
-</div>
-
-<div class="grid grid-cols-3 gap-3">
-<div>
-<label class="block text-slate-400 mb-1 font-medium">In Stock Qty</label>
-<input type="number" id="item-qty" value="1" min="0" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500 font-mono">
-</div>
-<div>
-<label class="block text-slate-400 mb-1 font-medium">Min Alert Qty</label>
-<input type="number" id="item-min-alert" value="2" min="0" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500 font-mono">
-</div>
-<div>
-<label class="block text-slate-400 mb-1 font-medium">Rack / Location</label>
-<input type="text" id="item-location" placeholder="e.g. Rack A-1" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500">
-</div>
-</div>
-
-<div class="pt-2 flex justify-end gap-2">
-<button type="button" onclick="closeModal('modal-item')" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">Cancel</button>
-<button type="submit" class="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">Save Material</button>
-</div>
-</form>
-</div>
-</div>
-
-<!-- MODAL 2: ADJUST STOCK QUANTITY -->
-<div id="modal-adjust-qty" class="fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-3 hidden">
-<div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-2xl">
-<h3 class="text-base font-bold text-slate-100">Adjust Stock Quantity</h3>
-<p id="adjust-qty-item-name" class="text-xs text-slate-400 font-medium"></p>
-
-<div class="flex items-center justify-center gap-4 py-2">
-<button type="button" onclick="stepQty(-1)" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-xl font-bold text-slate-200 border border-slate-700 flex items-center justify-center">-</button>
-<input type="number" id="adjust-qty-input" value="0" class="w-24 text-center bg-slate-950 border border-slate-800 rounded-xl py-2 text-xl font-bold font-mono text-indigo-400">
-<button type="button" onclick="stepQty(1)" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-xl font-bold text-slate-200 border border-slate-700 flex items-center justify-center">+</button>
-</div>
-
-<div class="flex justify-end gap-2 text-xs">
-<button type="button" onclick="closeModal('modal-adjust-qty')" class="px-3 py-2 rounded-lg bg-slate-800 text-slate-300">Cancel</button>
-<button type="button" onclick="saveQtyAdjustment()" class="px-4 py-2 rounded-lg bg-indigo-600 text-white font-semibold">Update Stock</button>
-</div>
-</div>
-</div>
-
-<!-- MODAL 3: RESERVE MATERIAL FOR JOB -->
-<div id="modal-reserve-job" class="fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-3 hidden">
-<div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-2xl">
-<h3 class="text-base font-bold text-slate-100">Reserve Material for Job</h3>
-<p id="reserve-item-name" class="text-xs text-indigo-400 font-medium"></p>
-
-<form id="form-reserve-job" class="space-y-3 text-xs">
-<input type="hidden" id="reserve-item-id">
-
-<div>
-<label class="block text-slate-400 mb-1 font-medium">Job # / Project Name *</label>
-<input type="text" id="reserve-job-name" placeholder="e.g. Job #1042 - Stair Handrails" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500">
-</div>
-
-<div>
-<label class="block text-slate-400 mb-1 font-medium">Quantity to Reserve *</label>
-<input type="number" id="reserve-job-qty" min="1" value="1" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500 font-mono">
-</div>
-
-<div class="flex justify-end gap-2 pt-2">
-<button type="button" onclick="closeModal('modal-reserve-job')" class="px-3 py-2 rounded-lg bg-slate-800 text-slate-300">Cancel</button>
-<button type="submit" class="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-semibold">Allocate Job</button>
-</div>
-</form>
-</div>
-</div>
-
-<!-- MODAL 4: QR SYNC MODAL -->
-<div id="modal-sync" class="fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-3 hidden">
-<div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-2xl">
-<div class="flex items-center justify-between border-b border-slate-800 pb-3">
-<h3 class="text-base font-bold text-slate-100 flex items-center gap-2">
-<i class="ph-bold ph-qr-code text-indigo-400"></i>
-<span>Shop Channel QR Sync</span>
-</h3>
-<button onclick="closeModal('modal-sync')" class="text-slate-400 hover:text-slate-200"><i class="ph-bold ph-x text-lg"></i></button>
-</div>
-
-<div class="flex border-b border-slate-800 text-xs">
-<button id="tab-qr-show" onclick="toggleSyncSubTab('show')" class="flex-1 py-2 font-semibold border-b-2 border-indigo-500 text-indigo-400">Show QR</button>
-<button id="tab-qr-scan" onclick="toggleSyncSubTab('scan')" class="flex-1 py-2 font-semibold border-b-2 border-transparent text-slate-400">Scan / Upload</button>
-<button id="tab-qr-manual" onclick="toggleSyncSubTab('manual')" class="flex-1 py-2 font-semibold border-b-2 border-transparent text-slate-400">Enter Code</button>
-</div>
-
-<!-- SUBTAB 1: SHOW QR -->
-<div id="sync-subtab-show" class="space-y-3 flex flex-col items-center">
-<div class="bg-slate-950 border border-slate-800 px-4 py-2 rounded-xl text-center w-full">
-<span class="text-[10px] text-slate-500 uppercase font-bold tracking-wider block">Current Shop Sync ID</span>
-<span id="sync-shop-code" class="text-xl font-mono font-bold text-indigo-400 tracking-widest">MS-336E</span>
-</div>
-
-<div id="qrcode-container" class="bg-white p-4 rounded-xl border border-slate-700 shadow-inner flex items-center justify-center min-h-[180px] min-w-[180px]">
-<span class="text-slate-400 text-xs">Generating QR...</span>
-</div>
-<p class="text-[11px] text-slate-400 text-center">Scan this low-density QR code on another device to immediately sync real-time database channels.</p>
-
-<div class="w-full pt-1">
-<button onclick="copyShopCodeToClipboard()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg border border-slate-700 flex items-center justify-center gap-1.5">
-<i class="ph-bold ph-copy"></i>
-<span>Copy Shop ID</span>
-</button>
-</div>
-</div>
-
-<!-- SUBTAB 2: SCANNER & FILE UPLOAD -->
-<div id="sync-subtab-scan" class="space-y-3 hidden">
-<div id="reader" class="overflow-hidden rounded-xl bg-slate-950 border border-slate-800 min-h-[160px] flex items-center justify-center">
-<span class="text-slate-500 text-xs p-4 text-center">Camera stream loading...</span>
-</div>
-
-<div class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-2 text-center">
-<span class="text-xs text-slate-300 font-medium block">Select QR Screenshot / Photo</span>
-<label class="inline-flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors">
-<i class="ph-bold ph-upload-simple"></i>
-<span>Choose Photo</span>
-<input type="file" id="qr-file-input" accept="image/*" class="hidden" onchange="handleQRFileUpload(event)">
-</label>
-</div>
-</div>
-
-<!-- SUBTAB 3: MANUAL INPUT -->
-<div id="sync-subtab-manual" class="space-y-3 hidden">
-<div class="space-y-1">
-<label class="block text-[11px] text-slate-400">Type Target Shop ID Code:</label>
-<input type="text" id="input-manual-shop-id" placeholder="e.g. MS-336E" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs font-mono text-slate-200 uppercase focus:border-indigo-500">
-</div>
-<button onclick="applyManualShopId()" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg">
-Connect Channel
-</button>
-</div>
-</div>
-</div>
-
-<!-- MODAL 5: GEMINI ASSISTANT -->
-<div id="modal-gemini" class="fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-3 hidden">
-<div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
-<div class="flex items-center justify-between border-b border-slate-800 pb-3">
-<div class="flex items-center gap-2">
-<div class="w-7 h-7 rounded-lg bg-purple-600/20 text-purple-400 flex items-center justify-center">
-<i class="ph-bold ph-sparkle"></i>
-</div>
-<h3 class="text-base font-bold text-slate-100">Gemini Shop Assistant</h3>
-</div>
-<button onclick="closeModal('modal-gemini')" class="text-slate-400 hover:text-slate-200"><i class="ph-bold ph-x text-lg"></i></button>
-</div>
-
-<div class="space-y-3 text-xs">
-<div class="bg-slate-950 border border-slate-800 p-3 rounded-xl space-y-2">
-<span class="font-bold text-indigo-400 uppercase tracking-wider text-[10px] block">Steel Plate Weight Estimator</span>
-<div class="grid grid-cols-2 gap-2">
-<div>
-<label class="text-slate-400 text-[10px]">Thickness (in)</label>
-<input type="number" id="gem-calc-thick" value="0.120" step="0.001" class="w-full bg-slate-900 border border-slate-800 rounded p-1.5 font-mono text-slate-200">
-</div>
-<div>
-<label class="text-slate-400 text-[10px]">Total Area (ft²)</label>
-<input type="number" id="gem-calc-area" value="32" class="w-full bg-slate-900 border border-slate-800 rounded p-1.5 font-mono text-slate-200">
-</div>
-</div>
-<button onclick="calcSteelWeight()" class="w-full py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded transition-colors">Calculate Weight</button>
-<div id="gem-weight-result" class="text-center font-mono font-bold text-emerald-400 pt-1">-- lbs</div>
-</div>
-
-<div class="bg-slate-950 border border-slate-800 p-3 rounded-xl space-y-1">
-<span class="font-bold text-purple-400 uppercase tracking-wider text-[10px] block">Standard Gauge Reference Sheet</span>
-<div class="grid grid-cols-3 gap-1 text-[11px] font-mono text-slate-300 pt-1">
-<div>10Ga = 0.134"</div>
-<div>12Ga = 0.105"</div>
-<div>14Ga = 0.075"</div>
-<div>16Ga = 0.060"</div>
-<div>18Ga = 0.048"</div>
-<div>20Ga = 0.036"</div>
-</div>
-</div>
-</div>
-</div>
-</div>
-
-<!-- ITEM CARD TEMPLATE -->
-<template id="template-item-card">
-<div class="item-card bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg space-y-3">
-<div class="flex items-start justify-between gap-2 border-b border-slate-800 pb-2">
-<div>
-<div class="flex items-center gap-1.5 flex-wrap">
-<span class="badge-cat px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"></span>
-<span class="badge-sku font-mono text-[11px] text-slate-500"></span>
-</div>
-<h3 class="card-title text-base font-bold text-slate-100 mt-1"></h3>
-<div class="card-specs text-xs text-slate-400 font-mono mt-0.5"></div>
-</div>
-</div>
-
-<!-- ACTION BUTTONS ROW -->
-<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-<button class="btn-adjust-qty flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium">
-<i class="ph-bold ph-plus-minus text-indigo-400"></i>
-<span>Stock Qty</span>
-</button>
-<button class="btn-reserve-job flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium">
-<i class="ph-bold ph-bookmark-simple text-amber-400"></i>
-<span>Reserve Job</span>
-</button>
-<button class="btn-edit flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium">
-<i class="ph-bold ph-pencil text-slate-400"></i>
-<span>Edit</span>
-</button>
-<button class="btn-delete flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg bg-slate-800 hover:bg-rose-950/40 text-rose-400 border border-slate-700 hover:border-rose-800/50 font-medium">
-<i class="ph-bold ph-trash"></i>
-<span>Delete</span>
-</button>
-</div>
-
-<div class="grid grid-cols-4 gap-2 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80 text-xs">
-<div>
-<span class="text-[10px] uppercase font-bold text-slate-500 block">In Stock</span>
-<span class="metric-qty font-mono font-bold text-emerald-400 text-sm">0</span>
-</div>
-<div>
-<span class="text-[10px] uppercase font-bold text-slate-500 block">Reserved</span>
-<span class="metric-reserved font-mono font-bold text-amber-400 text-sm">0</span>
-</div>
-<div>
-<span class="text-[10px] uppercase font-bold text-slate-500 block">Available</span>
-<span class="metric-avail font-mono font-bold text-cyan-400 text-sm">0</span>
-</div>
-<div>
-<span class="text-[10px] uppercase font-bold text-slate-500 block">Unit Cost</span>
-<span class="metric-price font-mono font-bold text-slate-200 text-xs">--</span>
-</div>
-</div>
-
-<div class="card-price-calc text-[11px] text-slate-400 font-mono bg-slate-950/30 px-2 py-1 rounded border border-slate-800/40"></div>
-</div>
-</template>
-
-<!-- SCRIPT APPLICATION CORE -->
-<script>
-// --- AUTO-CLEAR STUCK SERVICE WORKER CACHES ---
-if ('serviceWorker' in navigator) {
-navigator.serviceWorker.getRegistrations().then(registrations => {
-for (let registration of registrations) {
-registration.unregister();
-}
-});
-const swCode = self.addEventListener('install', e =&gt; self.skipWaiting()); self.addEventListener('activate', e =&gt; self.clients.claim()); self.addEventListener('fetch', e =&gt; e.respondWith(fetch(e.request).catch(() =&gt; caches.match(e.request))));;
-const blob = new Blob([swCode], { type: 'application/javascript' });
-navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
-}
-
-// --- FIREBASE CONFIGURATION ---
-const firebaseConfig = {
-apiKey: "AIzaSyDHDDCPeOyHkDGpHZAU9AAdKm14M5LCT-0",
-authDomain: "inventory-management-336e1.firebaseapp.com",
-databaseURL: "https://inventory-management-336e1-default-rtdb.firebaseio.com",
-projectId: "inventory-management-336e1",
-storageBucket: "inventory-management-336e1.firebasestorage.app",
-messagingSenderId: "339104206529",
-appId: "1:339104206529:web:9713c92c01ff02e1234e40",
-measurementId: "G-FTV8SW22YN"
-};
-
-// --- APP STATE ---
-let items = [];
-let jobs = [];
-let currentTab = "dashboard";
-let activeAdjustItemId = null;
-let shopSyncId = localStorage.getItem("metaltrack_shop_id") || "MS-336E";
-let qrScannerInstance = null;
-let db = null;
-let dbConnected = false;
-
-const DEFAULT_ITEMS = [
-{
-id: "item-1",
-category: "sheets",
-name: "Mild Steel Sheet A36",
-sku: "SM-STEEL-14G",
-thickness: "14 Gauge (0.075")",
-dimensions: "48" x 96"",
-price: 85.00,
-priceUnit: "sheet",
-qty: 8,
-minAlert: 3,
-location: "Rack A-1"
-},
-{
-id: "item-2",
-category: "sheets",
-name: "Stainless Steel 304 2B",
-sku: "SM-SS-11G",
-thickness: "11 Gauge (0.120")",
-dimensions: "1200mm x 2400mm",
-price: 45.00,
-priceUnit: "m2",
-qty: 4,
-minAlert: 2,
-location: "Rack A-2"
-},
-{
-id: "item-3",
-category: "tubing",
-name: "Square Steel Tubing A500",
-sku: "TUB-SQ-2IN",
-thickness: "2" x 2" x 11Ga",
-dimensions: "24 ft stick",
-price: 4.25,
-priceUnit: "foot",
-qty: 12,
-minAlert: 5,
-location: "Rack B-4"
-}
- ];
-
-const DEFAULT_JOBS = [
-{
-id: "job-1",
-itemId: "item-1",
-jobName: "Job #102 - Exterior Gate",
-reservedQty: 2,
-date: new Date().toLocaleDateString()
-}
- ];
-
-window.addEventListener("DOMContentLoaded", () => {
-loadLocalStore();
-setupEventListeners();
-initFirebaseRealtimeDB();
-renderCurrentView();
-lazyLoadQRLibraries();
-});
-
-function loadLocalStore() {
-try {
-const storedItems = localStorage.getItem("metaltrack_items");
-const storedJobs = localStorage.getItem("metaltrack_jobs");
-items = storedItems ? JSON.parse(storedItems) : DEFAULT_ITEMS;
-jobs = storedJobs ? JSON.parse(storedJobs) : DEFAULT_JOBS;
-} catch (e) {
-items = DEFAULT_ITEMS;
-jobs = DEFAULT_JOBS;
-}
-}
-
-function saveLocalStore() {
-localStorage.setItem("metaltrack_items", JSON.stringify(items));
-localStorage.setItem("metaltrack_jobs", JSON.stringify(jobs));
-localStorage.setItem("metaltrack_shop_id", shopSyncId);
-}
-
-function initFirebaseRealtimeDB() {
-try {
-if (!firebase.apps.length) {
-firebase.initializeApp(firebaseConfig);
-}
-db = firebase.database();
-
-const connectedRef = db.ref(".info/connected");
-connectedRef.on("value", (snap) => {
-dbConnected = snap.val() === true;
-updateOnlineStatus();
-});
-
-attachShopListeners();
-} catch (e) {
-console.warn("Firebase initialize error, running local fallback:", e);
-updateOnlineStatus();
-}
-}
-
-function attachShopListeners() {
-if (!db) return;
-
-const shopRef = db.ref("shops/" + shopSyncId);
-
-shopRef.child("inventory").on("value", (snapshot) => {
-const data = snapshot.val();
-if (data) {
-items = Array.isArray(data) ? data : Object.values(data);
-} else {
-db.ref("shops/" + shopSyncId + "/inventory").set(items);
-}
-saveLocalStore();
-renderCurrentView();
-});
-
-shopRef.child("reserves").on("value", (snapshot) => {
-const data = snapshot.val();
-if (data) {
-jobs = Array.isArray(data) ? data : Object.values(data);
-} else {
-db.ref("shops/" + shopSyncId + "/reserves").set(jobs);
-}
-saveLocalStore();
-renderCurrentView();
-});
-}
-
-function pushDataToCloud() {
-saveLocalStore();
-renderCurrentView();
-
-if (db && dbConnected) {
-db.ref("shops/" + shopSyncId + "/inventory").set(items);
-db.ref("shops/" + shopSyncId + "/reserves").set(jobs);
-}
-}
-
-function updateOnlineStatus() {
-const statusText = document.getElementById("connection-text");
-const statusDot = document.getElementById("connection-dot");
-const statusBadge = document.getElementById("connection-status");
-
-if (dbConnected) {
-statusText.textContent = Cloud Synced (${shopSyncId})`;
-statusDot.className = "w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse";
-statusBadge.className = "flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-medium";
-} else {
-statusText.textContent = "Local / Offline Ready";
-statusDot.className = "w-1.5 h-1.5 rounded-full bg-amber-400";
-statusBadge.className = "flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[11px] font-medium";
-}
-}
-
-function setupEventListeners() {
-document.querySelectorAll(".tab-btn").forEach(btn => {
-btn.addEventListener("click", () => switchTab(btn.dataset.tab));
-});
-
-document.getElementById("input-search").addEventListener("input", renderCurrentView);
-document.getElementById("checkbox-low-stock").addEventListener("change", renderCurrentView);
-
-document.getElementById("btn-open-add-modal").addEventListener("click", () => openAddModal());
-document.getElementById("btn-open-sync").addEventListener("click", () => openModal("modal-sync"));
-document.getElementById("btn-open-gemini").addEventListener("click", () => openModal("modal-gemini"));
-
-document.getElementById("form-item").addEventListener("submit", handleItemFormSubmit);
-document.getElementById("form-reserve-job").addEventListener("submit", handleReserveJobSubmit);
-}
-
-function switchTab(tabName) {
-currentTab = tabName;
-
-document.querySelectorAll(".tab-btn").forEach(btn => {
-if (btn.dataset.tab === tabName) {
-btn.className = "tab-btn flex-1 min-w-[100px] flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all bg-indigo-600 text-white shadow-md";
-} else {
-btn.className = "tab-btn flex-1 min-w-[100px] flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all";
-}
-});
-
-document.getElementById("tab-content-dashboard").classList.toggle("hidden", tabName !== "dashboard");
-document.getElementById("tab-content-materials").classList.toggle("hidden", !["sheets", "tubing", "remnants"].includes(tabName));
-document.getElementById("tab-content-jobs").classList.toggle("hidden", tabName !== "jobs");
-
-document.getElementById("search-filter-container").classList.toggle("hidden", tabName === "dashboard" || tabName === "jobs");
-
-renderCurrentView();
-}
-
-function renderCurrentView() {
-if (currentTab === "dashboard") {
-renderDashboard();
-} else if (["sheets", "tubing", "remnants"].includes(currentTab)) {
-renderMaterialCards();
-} else if (currentTab === "jobs") {
-renderJobs();
-}
-}
-
-function renderDashboard() {
-let totalVal = 0;
-let lowStockCount = 0;
-
-items.forEach(item => {
-const itemPrice = parseFloat(item.price) || 0;
-totalVal += itemPrice * (parseInt(item.qty) || 0);
-
-const totalReserved = jobs.filter(j => j.itemId === item.id).reduce((acc, j) => acc + (parseInt(j.reservedQty) || 0), 0);
-const avail = item.qty - totalReserved;
-
-if (avail <= (parseInt(item.minAlert) || 0)) {
-lowStockCount++;
-}
-});
-
-document.getElementById("dash-val-total").textContent = ``${totalVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-document.getElementById("dash-total-items").textContent = items.length;
-document.getElementById("dash-active-jobs").textContent = jobs.length;
-document.getElementById("dash-low-stock").textContent = lowStockCount;
-
-const summaryContainer = document.getElementById("dashboard-type-summary");
-summaryContainer.innerHTML = "";
-
-const categories = [
-{ id: "sheets", name: "Sheet Metal", icon: "ph-bounding-box" },
-{ id: "tubing", name: "Tubing & Pipe", icon: "ph-cylinder" },
-{ id: "remnants", name: "Remnants", icon: "ph-scissors" }
- ];
-
-categories.forEach(cat => {
-const catItems = items.filter(i => i.category === cat.id);
-const catCount = catItems.reduce((acc, i) => acc + (parseInt(i.qty) || 0), 0);
-
-const card = document.createElement("div");
-card.className = "bg-slate-950 p-3 rounded-lg border border-slate-800 flex items-center justify-between";
-card.innerHTML = &lt;div class="flex items-center gap-3"&gt; &lt;i class="ph-bold ${cat.icon} text-lg text-indigo-400"></i>
-<div>
-<div class="text-xs font-bold text-slate-200">${cat.name}&lt;/div&gt; &lt;div class="text-[11px] text-slate-500"&gt;${catItems.length} SKUs</div>
-</div>
-</div>
-<div class="font-mono font-bold text-sm text-slate-100">${catCount} units&lt;/div&gt;;
-summaryContainer.appendChild(card);
-});
-
-const recentContainer = document.getElementById("dashboard-recent-jobs");
-recentContainer.innerHTML = "";
-
-if (jobs.length === 0) {
-recentContainer.innerHTML = <div class="text-slate-500 text-center py-2"&gt;No active job allocations.&lt;/div>;
-} else {
-jobs.slice(0, 5).forEach(job => {
-const item = items.find(i => i.id === job.itemId);
-const row = document.createElement("div");
-row.className = "flex items-center justify-between p-2 rounded bg-slate-950 border border-slate-800/80";
-row.innerHTML = &lt;div&gt; &lt;span class="font-bold text-slate-200 block"&gt;${job.jobName}</span>
-<span class="text-slate-500 text-[11px]">${item ? item.name : 'Unknown Item'}&lt;/span&gt; &lt;/div&gt; &lt;div class="text-right font-mono"&gt; &lt;span class="text-amber-400 font-bold"&gt;${job.reservedQty} reserved</span>
-</div>
-`;
-recentContainer.appendChild(row);
-});
-}
-}
-
-function renderMaterialCards() {
-const container = document.getElementById("materials-container");
-const emptyState = document.getElementById("empty-materials-state");
-const template = document.getElementById("template-item-card");
-
-container.innerHTML = "";
-
-const query = document.getElementById("input-search").value.toLowerCase();
-const lowStockOnly = document.getElementById("checkbox-low-stock").checked;
-
-const filtered = items.filter(item => {
-if (item.category !== currentTab) return false;
-
-const totalReserved = jobs.filter(j => j.itemId === item.id).reduce((acc, j) => acc + (parseInt(j.reservedQty) || 0), 0);
-const avail = item.qty - totalReserved;
-
-if (lowStockOnly && avail > (parseInt(item.minAlert) || 0)) return false;
-
-if (query) {
-const searchStr = ``${item.name} {item.thickness} ${item.location}.toLowerCase();
-if (!searchStr.includes(query)) return false;
-}
-
-return true;
-});
-
-if (filtered.length === 0) {
-emptyState.classList.remove("hidden");
-return;
-}
-emptyState.classList.add("hidden");
-
-filtered.forEach(item => {
-const clone = template.content.cloneNode(true);
-
-const reservedQty = jobs.filter(j => j.itemId === item.id).reduce((acc, j) => acc + (parseInt(j.reservedQty) || 0), 0);
-const availQty = item.qty - reservedQty;
-
-clone.querySelector(".badge-cat").textContent = item.category;
-clone.querySelector(".badge-sku").textContent = item.sku || "NO-SKU";
-clone.querySelector(".card-title").textContent = item.name;
-clone.querySelector(".card-specs").textContent = ``${item.thickness || ''} | {item.location || 'Unassigned'}`;
-
-clone.querySelector(".metric-qty").textContent = item.qty;
-clone.querySelector(".metric-reserved").textContent = reservedQty;
-clone.querySelector(".metric-avail").textContent = availQty;
-clone.querySelector(".metric-price").textContent = item.price ? ${parseFloat(item.price).toFixed(2)}` : '--';
-
-const priceCalcEl = clone.querySelector(".card-price-calc");
-priceCalcEl.textContent = calculatePriceBreakdown(item);
-
-clone.querySelector(".btn-adjust-qty").onclick = () => openAdjustQtyModal(item.id);
-clone.querySelector(".btn-reserve-job").onclick = () => openReserveJobModal(item.id);
-clone.querySelector(".btn-edit").onclick = () => openEditModal(item.id);
-clone.querySelector(".btn-delete").onclick = () => deleteItem(item.id);
-
-container.appendChild(clone);
-});
-}
-
-function calculatePriceBreakdown(item) {
-if (!item.price || item.price <= 0) return "Unit Price: Not set";
-
-const unit = item.priceUnit || "sheet";
-const price = parseFloat(item.price);
-
-if (unit === "m2") {
-return Priced at${price.toFixed(2)} / m²`;
-}
-
-if (unit === "sheet" && item.dimensions) {
-const parsedSqM = parseAreaToSquareMeters(item.dimensions);
-if (parsedSqM > 0) {
-const pricePerM2 = price / parsedSqM;
-return Priced at ${price.toFixed(2)}/sheet (~${pricePerM2.toFixed(2)} / m²);
-}
-}
-
-return Priced at ${price.toFixed(2)} / ${unit};
-}
-
-function parseAreaToSquareMeters(dimStr) {
-try {
-const inchMatch = dimStr.match(/(\d+(?:.\d+)?)\s*"\sx\s(\d+(?:.\d+)?)\s*"/i);
-if (inchMatch) {
-const wInches = parseFloat(inchMatch[1]);
-const hInches = parseFloat(inchMatch[2]);
-return (wInches * hInches) * 0.00064516;
-}
-
-const mmMatch = dimStr.match(/(\d+(?:.\d+)?)\smm\sx\s*(\d+(?:.\d+)?)\s*mm/i);
-if (mmMatch) {
-return (parseFloat(mmMatch[1]) / 1000) * (parseFloat(mmMatch[2]) / 1000);
-}
-} catch (e) {
-return 0;
-}
-return 0;
-}
-
-function renderJobs() {
-const container = document.getElementById("jobs-container");
-const emptyState = document.getElementById("empty-jobs-state");
-
-container.innerHTML = "";
-
-if (jobs.length === 0) {
-emptyState.classList.remove("hidden");
-return;
-}
-emptyState.classList.add("hidden");
-
-jobs.forEach(job => {
-const item = items.find(i => i.id === job.itemId);
-const card = document.createElement("div");
-card.className = "bg-slate-950 p-3.5 rounded-xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs";
-card.innerHTML = &lt;div&gt; &lt;div class="font-bold text-slate-100 text-sm"&gt;${job.jobName}</div>
-<div class="text-indigo-400 font-medium mt-0.5">${item ? item.name : 'Unknown SKU'} (${item ? item.thickness : ''})</div>
-<div class="text-slate-500 text-[11px] mt-0.5">Allocated: ${job.date || 'N/A'}&lt;/div&gt; &lt;/div&gt; &lt;div class="flex items-center gap-2"&gt; &lt;span class="font-mono font-bold text-amber-400 text-sm bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg"&gt;${job.reservedQty} Reserved</span>
-<button onclick="fulfillJob('${job.id}')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-colors"&gt;Fulfill & Subtract&lt;/button&gt; &lt;button onclick="releaseJob('${job.id}')" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">Release</button>
-</div>
-`;
-container.appendChild(card);
-});
-}
-
-function openModal(id) {
-document.getElementById(id).classList.remove("hidden");
-if (id === "modal-sync") renderLightweightSyncQR();
-}
-
-function closeModal(id) {
-document.getElementById(id).classList.add("hidden");
-if (qrScannerInstance) {
-try { qrScannerInstance.stop(); } catch(e){}
-}
-}
-
-function openAddModal() {
-document.getElementById("modal-item-title").textContent = "Add New Inventory Item";
-document.getElementById("form-item").reset();
-document.getElementById("item-id").value = "";
-document.getElementById("item-category").value = ["sheets", "tubing", "remnants"].includes(currentTab) ? currentTab : "sheets";
-openModal("modal-item");
-}
-
-function openEditModal(itemId) {
-const item = items.find(i => i.id === itemId);
-if (!item) return;
-
-document.getElementById("modal-item-title").textContent = "Edit Material Item";
-document.getElementById("item-id").value = item.id;
-document.getElementById("item-category").value = item.category || "sheets";
-document.getElementById("item-name").value = item.name || "";
-document.getElementById("item-sku").value = item.sku || "";
-document.getElementById("item-thickness").value = item.thickness || "";
-document.getElementById("item-dimensions").value = item.dimensions || "";
-document.getElementById("item-price").value = item.price || "";
-document.getElementById("item-price-unit").value = item.priceUnit || "sheet";
-document.getElementById("item-qty").value = item.qty || 0;
-document.getElementById("item-min-alert").value = item.minAlert || 2;
-document.getElementById("item-location").value = item.location || "";
-
-openModal("modal-item");
-}
-
-function handleItemFormSubmit(e) {
-e.preventDefault();
-
-const id = document.getElementById("item-id").value;
-const newItem = {
-id: id || item-${Date.now()}, category: document.getElementById("item-category").value, name: document.getElementById("item-name").value, sku: document.getElementById("item-sku").value ||SKU-${Math.floor(1000 + Math.random() * 9000)},
-thickness: document.getElementById("item-thickness").value,
-dimensions: document.getElementById("item-dimensions").value,
-price: parseFloat(document.getElementById("item-price").value) || 0,
-priceUnit: document.getElementById("item-price-unit").value,
-qty: parseInt(document.getElementById("item-qty").value) || 0,
-minAlert: parseInt(document.getElementById("item-min-alert").value) || 0,
-location: document.getElementById("item-location").value
-};
-
-if (id) {
-const index = items.findIndex(i => i.id === id);
-if (index !== -1) items[index] = newItem;
-} else {
-items.push(newItem);
-}
-
-pushDataToCloud();
-closeModal("modal-item");
-}
-
-function deleteItem(id) {
-if (confirm("Are you sure you want to delete this material item?")) {
-items = items.filter(i => i.id !== id);
-jobs = jobs.filter(j => j.itemId !== id);
-pushDataToCloud();
-}
-}
-
-function openAdjustQtyModal(id) {
-activeAdjustItemId = id;
-const item = items.find(i => i.id === id);
-if (!item) return;
-
-document.getElementById("adjust-qty-item-name").textContent = ``${item.name} (Current Stock: ${item.qty});
-document.getElementById("adjust-qty-input").value = item.qty;
-openModal("modal-adjust-qty");
-}
-
-function stepQty(delta) {
-const input = document.getElementById("adjust-qty-input");
-let val = parseInt(input.value) || 0;
-val = Math.max(0, val + delta);
-input.value = val;
-}
-
-function saveQtyAdjustment() {
-if (!activeAdjustItemId) return;
-const item = items.find(i => i.id === activeAdjustItemId);
-if (item) {
-item.qty = parseInt(document.getElementById("adjust-qty-input").value) || 0;
-pushDataToCloud();
-}
-closeModal("modal-adjust-qty");
-}
-
-function openReserveJobModal(itemId) {
-const item = items.find(i => i.id === itemId);
-if (!item) return;
-
-document.getElementById("reserve-item-id").value = itemId;
-document.getElementById("reserve-item-name").textContent = ``${item.name} (${item.thickness});
-document.getElementById("reserve-job-name").value = "";
-document.getElementById("reserve-job-qty").value = 1;
-
-openModal("modal-reserve-job");
-}
-
-function handleReserveJobSubmit(e) {
-e.preventDefault();
-
-const itemId = document.getElementById("reserve-item-id").value;
-const jobName = document.getElementById("reserve-job-name").value;
-const qty = parseInt(document.getElementById("reserve-job-qty").value) || 1;
-
-jobs.push({
-id: job-${Date.now()}`,
-itemId: itemId,
-jobName: jobName,
-reservedQty: qty,
-date: new Date().toLocaleDateString()
-});
-
-pushDataToCloud();
-closeModal("modal-reserve-job");
-}
-
-function fulfillJob(jobId) {
-const job = jobs.find(j => j.id === jobId);
-if (!job) return;
-
-const item = items.find(i => i.id === job.itemId);
-if (item) {
-item.qty = Math.max(0, item.qty - job.reservedQty);
-}
-
-jobs = jobs.filter(j => j.id !== jobId);
-pushDataToCloud();
-}
-
-function releaseJob(jobId) {
-jobs = jobs.filter(j => j.id !== jobId);
-pushDataToCloud();
-}
-
-function lazyLoadQRLibraries() {
-if (window.QRCode && window.Html5Qrcode) return;
-
-const s1 = document.createElement("script");
-s1.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
-document.head.appendChild(s1);
-
-const s2 = document.createElement("script");
-s2.src = "https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js";
-document.head.appendChild(s2);
-}
-
-function toggleSyncSubTab(subTab) {
-document.getElementById("sync-subtab-show").classList.toggle("hidden", subTab !== "show");
-document.getElementById("sync-subtab-scan").classList.toggle("hidden", subTab !== "scan");
-document.getElementById("sync-subtab-manual").classList.toggle("hidden", subTab !== "manual");
-
-document.getElementById("tab-qr-show").className = subTab === "show"
-? "flex-1 py-2 font-semibold border-b-2 border-indigo-500 text-indigo-400"
-: "flex-1 py-2 font-semibold border-b-2 border-transparent text-slate-400";
-document.getElementById("tab-qr-scan").className = subTab === "scan"
-? "flex-1 py-2 font-semibold border-b-2 border-indigo-500 text-indigo-400"
-: "flex-1 py-2 font-semibold border-b-2 border-transparent text-slate-400";
-document.getElementById("tab-qr-manual").className = subTab === "manual"
-? "flex-1 py-2 font-semibold border-b-2 border-indigo-500 text-indigo-400"
-: "flex-1 py-2 font-semibold border-b-2 border-transparent text-slate-400";
-
-if (subTab === "scan") {
-startCameraQRScanner();
-} else if (qrScannerInstance) {
-try { qrScannerInstance.stop(); } catch(e){}
-}
-}
-
-function renderLightweightSyncQR() {
-document.getElementById("sync-shop-code").textContent = shopSyncId;
-const container = document.getElementById("qrcode-container");
-container.innerHTML = "";
-
-if (window.QRCode) {
-new QRCode(container, {
-text: shopSyncId,
-width: 160,
-height: 160,
-colorDark: "#020617",
-colorLight: "#ffffff",
-correctLevel: QRCode.CorrectLevel.L
-});
-} else {
-container.innerHTML = <span class="text-indigo-400 font-mono font-bold text-lg"&gt;${shopSyncId}</span>`;
-}
-}
-
-function copyShopCodeToClipboard() {
-const temp = document.createElement("textarea");
-temp.value = shopSyncId;
-document.body.appendChild(temp);
-temp.select();
-document.execCommand("copy");
-document.body.removeChild(temp);
-alert(Shop Sync ID (${shopSyncId}) copied!`);
-}
-
-function startCameraQRScanner() {
-if (!window.Html5Qrcode) return;
-
-if (qrScannerInstance) {
-try { qrScannerInstance.stop(); } catch(e){}
-}
-
-qrScannerInstance = new Html5Qrcode("reader");
-qrScannerInstance.start(
-{ facingMode: "environment" },
-{ fps: 10, qrbox: 180 },
-(decodedText) => {
-handleScannedShopId(decodedText);
-qrScannerInstance.stop();
-},
-() => {}
-).catch(err => {
-console.warn("Camera start prevented:", err);
-});
-}
-
-function handleQRFileUpload(event) {
-const file = event.target.files[0];
-if (!file || !window.Html5Qrcode) return;
-
-const scanner = new Html5Qrcode("reader");
-scanner.scanFile(file, true)
-.then(decodedText => {
-handleScannedShopId(decodedText);
-})
-.catch(err => {
-alert("Could not read QR code from image. Try manual input!");
-});
-}
-
-function applyManualShopId() {
-const code = document.getElementById("input-manual-shop-id").value.trim().toUpperCase();
-if (code) handleScannedShopId(code);
-}
-
-function handleScannedShopId(code) {
-shopSyncId = code;
-saveLocalStore();
-closeModal("modal-sync");
-attachShopListeners();
-alert(Successfully connected to Shop Real-Time Channel: ${code}`);
-}
-
-function calcSteelWeight() {
-const thick = parseFloat(document.getElementById("gem-calc-thick").value) || 0;
-const area = parseFloat(document.getElementById("gem-calc-area").value) || 0;
-const lbsPerSqFt = thick * 40.8;
-const totalLbs = lbsPerSqFt * area;
-document.getElementById("gem-weight-result").textContent = ~${totalLbs.toFixed(1)} lbs`;
-}
-</script>
-</body>
-</html>
+    <header class="sticky top-0 z-30 bg-slate-900/90 border-b border-slate-800 backdrop-blur-md px-4 py-3 max-w-full">
+        <div class="max-w-6xl mx-auto flex items-center justify-between gap-2">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <i class="ph-bold ph-steel-series text-xl text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-base font-bold text-slate-100 leading-tight">MetalTrack</h1>
+                    <div id="connection-status" class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[11px] font-medium">
+                        <span id="connection-dot" class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+                        <span id="connection-text">Connecting Cloud...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-1.5 sm:gap-2">
+                <button id="btn-open-gemini" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-md shadow-purple-900/30 transition-all active:scale-95">
+                    <i class="ph-bold ph-sparkle text-amber-300"></i>
+                    <span class="hidden xs:inline">Gemini AI</span>
+                </button>
+
+                <button id="btn-open-sync" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-sm transition-all" title="Sync via QR Code">
+                    <i class="ph-bold ph-qr-code text-indigo-400"></i>
+                </button>
+
+                <button id="btn-open-add-modal" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-900/30 transition-all active:scale-95">
+                    <i class="ph-bold ph-plus"></i>
+                    <span>New Item</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-6xl w-full mx-auto px-3 sm:px-6 py-4 space-y-4">
+        <div class="flex items-center gap-1 p-1 bg-slate-900 rounded-xl border border-slate-800 overflow-x-auto max-w-full">
+            <button data-tab="dashboard" class="tab-btn flex-1 min-w-[100px] flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all bg-indigo-600 text-white shadow-md">
+                <i class="ph-bold ph-squares-four"></i>
+                <span>Dashboard</span>
+            </button>
+            <button data-tab="sheets" class="tab-btn flex-1 min-w-[100px] flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all">
+                <i class="ph-bold ph-bounding-box"></i>
+                <span>Sheet Metal</span>
+            </button>
+            <button data-tab="tubing" class="tab-btn flex-1 min-w-[100px] flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all">
+                <i class="ph-bold ph-cylinder"></i>
+                <span>Tubing & Pipe</span>
+            </button>
+            <button data-tab="remnants" class="tab-btn flex-1 min-w-[100px] flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all">
+                <i class="ph-bold ph-scissors"></i>
+                <span>Remnants</span>
+            </button>
+            <button data-tab="jobs" class="tab-btn flex-1 min-w-[100px] flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all">
+                <i class="ph-bold ph-bookmark-simple"></i>
+                <span>Job Reserves</span>
+            </button>
+        </div>
+
+        <div id="search-filter-container" class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center justify-between">
+            <div class="relative flex-1">
+                <i class="ph-bold ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                <input type="text" id="input-search" placeholder="Search SKU, material, gauge, location..." class="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors">
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="flex items-center gap-2 px-3 py-2 bg-slate-900 rounded-xl border border-slate-800 text-xs text-slate-300 cursor-pointer hover:bg-slate-800/50 transition-colors">
+                    <input type="checkbox" id="checkbox-low-stock" class="rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-0">
+                    <span>Low Stock Only</span>
+                </label>
+            </div>
+        </div>
+
+        <section id="tab-content-dashboard" class="tab-content space-y-4">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+                    <div class="text-slate-400 text-xs font-medium uppercase tracking-wider">Est. Stock Valuation</div>
+                    <div id="dash-val-total" class="text-xl sm:text-2xl font-bold text-emerald-400 mt-1 font-mono">$0.00</div>
+                    <div class="text-[11px] text-slate-500 mt-1">Based on unit costs</div>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+                    <div class="text-slate-400 text-xs font-medium uppercase tracking-wider">Total SKUs</div>
+                    <div id="dash-total-items" class="text-xl sm:text-2xl font-bold text-indigo-400 mt-1 font-mono">0</div>
+                    <div class="text-[11px] text-slate-500 mt-1">Unique stock items</div>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+                    <div class="text-slate-400 text-xs font-medium uppercase tracking-wider">Active Job Reserves</div>
+                    <div id="dash-active-jobs" class="text-xl sm:text-2xl font-bold text-amber-400 mt-1 font-mono">0</div>
+                    <div class="text-[11px] text-slate-500 mt-1">Allocated to projects</div>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+                    <div class="text-slate-400 text-xs font-medium uppercase tracking-wider">Low / Out Alerts</div>
+                    <div id="dash-low-stock" class="text-xl sm:text-2xl font-bold text-rose-400 mt-1 font-mono">0</div>
+                    <div class="text-[11px] text-slate-500 mt-1">Requires reorder</div>
+                </div>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+                <h2 class="text-sm font-bold text-slate-200 uppercase tracking-wider">Stock Summary</h2>
+                <div id="dashboard-type-summary" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-sm font-bold text-slate-200 uppercase tracking-wider">Recent Job Allocations</h2>
+                    <button onclick="switchTab('jobs')" class="text-xs text-indigo-400 hover:underline">View All Jobs &rarr;</button>
+                </div>
+                <div id="dashboard-recent-jobs" class="space-y-2 text-xs"></div>
+            </div>
+        </section>
+
+        <section id="tab-content-materials" class="tab-content hidden space-y-3">
+            <div id="materials-container" class="space-y-3"></div>
+            <div id="empty-materials-state" class="hidden text-center py-12 bg-slate-900/50 rounded-xl border border-dashed border-slate-800">
+                <i class="ph-bold ph-package text-4xl text-slate-600 mb-2"></i>
+                <p class="text-sm text-slate-400">No inventory items found in this category.</p>
+                <button onclick="openAddModal()" class="mt-3 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold">Add First Item</button>
+            </div>
+        </section>
+
+        <section id="tab-content-jobs" class="tab-content hidden space-y-3">
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                <h2 class="text-sm font-bold text-slate-200 mb-3">Active Job Material Reserves</h2>
+                <div id="jobs-container" class="space-y-3"></div>
+                <div id="empty-jobs-state" class="hidden text-center py-8 text-slate-500 text-xs">
+                    No active job reserves found. Allocate material directly from item cards!
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="modal-item" class="fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-3 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+            <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+                <h3 id="modal-item-title" class="text-base font-bold text-slate-100">Add New Inventory Item</h3>
+                <button onclick="closeModal('modal-item')" class="text-slate-400 hover:text-slate-200"><i class="ph-bold ph-x text-lg"></i></button>
+            </div>
+            
+            <form id="form-item" class="p-5 space-y-4 overflow-y-auto flex-1 text-xs">
+                <input type="hidden" id="item-id">
+                <div>
+                    <label class="block text-slate-400 mb-1 font-medium">Category Type</label>
+                    <select id="item-category" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500">
+                        <option value="sheets">Sheet Metal</option>
+                        <option value="tubing">Tubing & Pipe</option>
+                        <option value="remnants">Remnant / Drop</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">Material Name *</label>
+                        <input type="text" id="item-name" placeholder="e.g. Mild Steel Sheet A36" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">SKU / ID</label>
+                        <input type="text" id="item-sku" placeholder="Auto-generated if blank" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500 font-mono">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">Gauge / Thickness</label>
+                        <input type="text" id="item-thickness" placeholder='e.g. 14 Gauge (0.075")' class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">Dimensions / Size</label>
+                        <input type="text" id="item-dimensions" placeholder='e.g. 48" x 96" or 1200mm x 2400mm' class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">Unit Price ($)</label>
+                        <input type="number" step="0.01" id="item-price" placeholder="0.00" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500 font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">Price Unit Basis</label>
+                        <select id="item-price-unit" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500">
+                            <option value="sheet">Per Sheet</option>
+                            <option value="m2">Per Sq. Meter (m²)</option>
+                            <option value="sqft">Per Sq. Foot (ft²)</option>
+                            <option value="stick">Per Stick / Pipe</option>
+                            <option value="foot">Per Foot (/ft)</option>
+                            <option value="unit">Per Unit / Each</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">In Stock Qty</label>
+                        <input type="number" id="item-qty" value="1" min="0" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500 font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">Min Alert Qty</label>
+                        <input type="number" id="item-min-alert" value="2" min="0" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500 font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">Rack / Location</label>
+                        <input type="text" id="item-location" placeholder="e.g. Rack A-1" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" onclick="closeModal('modal-item')" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">Cancel</button>
+                    <button type="submit" class="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">Save Material</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-adjust-qty" class="fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-3 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-2xl">
+            <h3 class="text-base font-bold text-slate-100">Adjust Stock Quantity</h3>
+            <p id="adjust-qty-item-name" class="text-xs text-slate-400 font-medium"></p>
+            
+            <div class="flex items-center justify-center gap-4 py-2">
+                <button type="button" onclick="stepQty(-1)" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-xl font-bold text-slate-200 border border-slate-700 flex items-center justify-center">-</button>
+                <input type="number" id="adjust-qty-input" value="0" class="w-24 text-center bg-slate-950 border border-slate-800 rounded-xl py-2 text-xl font-bold font-mono text-indigo-400">
+                <button type="button" onclick="stepQty(1)" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-xl font-bold text-slate-200 border border-slate-700 flex items-center justify-center">+</button>
+            </div>
+
+            <div class="flex justify-end gap-2 text-xs">
+                <button type="button" onclick="closeModal('modal-adjust-qty')" class="px-3 py-2 rounded-lg bg-slate-800 text-slate-300">Cancel</button>
+                <button type="button" onclick="saveQtyAdjustment()" class="px-4 py-2 rounded-lg bg-indigo-600 text-white font-semibold">Update Stock</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-reserve-job" class="fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-3 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-2xl">
+            <h3 class="text-base font-bold text-slate-100">Reserve Material for Job</h3>
+            <p id="reserve-item-name" class="text-xs text-indigo-400 font-medium"></p>
+
+            <form id="form-reserve-job" class="space-y-3 text-xs">
+                <input type="hidden" id="reserve-item-id">
+                <div>
+                    <label class="block text-slate-400 mb-1 font-medium">Job # / Project Name *</label>
+                    <input type="text" id="reserve-job-name" placeholder="e.g. Job #1042 - Stair Handrails" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500">
+                </div>
+
+                <div>
+                    <label class="block text-slate-400 mb-1 font-medium">Quantity to Reserve *</label>
+                    <input type="number" id="reserve-job-qty" min="1" value="1" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500 font-mono">
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeModal('modal-reserve-job')" class="px-3 py-2 rounded-lg bg-slate-800 text-slate-300">Cancel</button>
+                    <button type="submit" class="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-semibold">Allocate Job</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-sync" class="fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-3 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="text-base font-bold text-slate-100 flex items-center gap-2">
+                    <i class="ph-bold ph-qr-code text-indigo-400"></i>
+                    <span>Shop Channel QR Sync</span>
+                </h3>
+                <button onclick="closeModal('modal-sync')" class="text-slate-400 hover:text-slate-200"><i class="ph-bold ph-x text-lg"></i></button>
+            </div>
+
+            <div class="flex border-b border-slate-800 text-xs">
+                <button id="tab-qr-show" onclick="toggleSyncSubTab('show')" class="flex-1 py-2 font-semibold border-b-2 border-indigo-500 text-indigo-400">Show QR</button>
+                <button id="tab-qr-scan" onclick="toggleSyncSubTab('scan')" class="flex-1 py-2 font-semibold border-b-2 border-transparent text-slate-400">Scan / Upload</button>
+                <button id="tab-qr-manual" onclick="toggleSyncSubTab('manual')" class="flex-1 py-2 font-semibold border-b-2 border-transparent text-slate-400">Enter Code</button>
+            </div>
+
+            <div id="sync-subtab-show" class="space-y-3 flex flex-col items-center">
+                <div class="bg-slate-950 border border-slate-800 px-4 py-2 rounded-xl text-center w-full">
+                    <span class="text-[10px] text-slate-500 uppercase font-bold tracking-wider block">Current Shop Sync ID</span>
+                    <span id="sync-shop-code" class="text-xl font-mono font-bold text-indigo-400 tracking-widest">MS-336E</span>
+                </div>
+
+                <div id="qrcode-container" class="bg-white p-4 rounded-xl border border-slate-700 shadow-inner flex items-center justify-center min-h-[180px] min-w-[180px]">
+                    <span class="text-slate-400 text-xs">Generating QR...</span>
+                </div>
+                <p class="text-[11px] text-slate-400 text-center">Scan this low-density QR code on another device to immediately sync real-time database channels.</p>
+                
+                <div class="w-full pt-1">
+                    <button onclick="copyShopCodeToClipboard()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg border border-slate-700 flex items-center justify-center gap-1.5">
+                        <i class="ph-bold ph-copy"></i>
+                        <span>Copy Shop ID</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="sync-subtab-scan" class="space-y-3 hidden">
+                <div id="reader" class="overflow-hidden rounded-xl bg-slate-950 border border-slate-800 min-h-[160px] flex items-center justify-center">
+                    <span class="text-slate-500 text-xs p-4 text-center">Camera stream loading...</span>
+                </div>
+
+                <div class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-2 text-center">
+                    <span class="text-xs text-slate-300 font-medium block">Select QR Screenshot / Photo</span>
+                    <label class="inline-flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors">
+                        <i class="ph-bold ph-upload-simple"></i>
+                        <span>Choose Photo</span>
+                        <input type="file" id="qr-file-input" accept="image/*" class="hidden" onchange="handleQRFileUpload(event)">
+                    </label>
+                </div>
+            </div>
+
+            <div id="sync-subtab-manual" class="space-y-3 hidden">
+                <div class="space-y-1">
+                    <label class="block text-[11px] text-slate-400">Type Target Shop ID Code:</label>
+                    <input type="text" id="input-manual-shop-id" placeholder="e.g. MS-336E" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs font-mono text-slate-200 uppercase focus:border-indigo-500">
+                </div>
+                <button onclick="applyManualShopId()" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg">
+                    Connect Channel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-gemini" class="fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-3 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-lg bg-purple-600/20 text-purple-400 flex items-center justify-center">
+                        <i class="ph-bold ph-sparkle"></i>
+                    </div>
+                    <h3 class="text-base font-bold text-slate-100">Gemini Shop Assistant</h3>
+                </div>
+                <button onclick="closeModal('modal-gemini')" class="text-slate-400 hover:text-slate-200"><i class="ph-bold ph-x text-lg"></i></button>
+            </div>
+
+            <div class="space-y-3 text-xs">
+                <div class="bg-slate-950 border border-slate-800 p-3 rounded-xl space-y-2">
+                    <span class="font-bold text-indigo-400 uppercase tracking-wider text-[10px] block">Steel Plate Weight Estimator</span>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-slate-400 text-[10px]">Thickness (in)</label>
+                            <input type="number" id="gem-calc-thick" value="0.120" step="0.001" class="w-full bg-slate-900 border border-slate-800 rounded p-1.5 font-mono text-slate-200">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 text-[10px]">Total Area (ft²)</label>
+                            <input type="number" id="gem-calc-area" value="32" class="w-full bg-slate-900 border border-slate-800 rounded p-1.5 font-mono text-slate-200">
+                        </div>
+                    </div>
+                    <button onclick="calcSteelWeight()" class="w-full py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded transition-colors">Calculate Weight</button>
+                    <div id="gem-weight-result" class="text-center font-mono font-bold text-emerald-400 pt-1">-- lbs</div>
+                </div>
+
+                <div class="bg-slate-950 border border-slate-800 p-3 rounded-xl space-y-1">
+                    <span class="font-bold text-purple-400
