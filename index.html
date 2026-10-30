@@ -419,4 +419,785 @@
                 </div>
 
                 <div class="bg-slate-950 border border-slate-800 p-3 rounded-xl space-y-1">
-                    <span class="font-bold text-purple-400
+                    <span class="font-bold text-purple-400 uppercase tracking-wider text-[10px] block">Standard Gauge Reference Sheet</span>
+                    <div class="grid grid-cols-3 gap-1 text-[11px] font-mono text-slate-300 pt-1">
+                        <div>10Ga = 0.134"</div>
+                        <div>12Ga = 0.105"</div>
+                        <div>14Ga = 0.075"</div>
+                        <div>16Ga = 0.060"</div>
+                        <div>18Ga = 0.048"</div>
+                        <div>20Ga = 0.036"</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <template id="template-item-card">
+        <div class="item-card bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg space-y-3">
+            <div class="flex items-start justify-between gap-2 border-b border-slate-800 pb-2">
+                <div>
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <span class="badge-cat px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"></span>
+                        <span class="badge-sku font-mono text-[11px] text-slate-500"></span>
+                    </div>
+                    <h3 class="card-title text-base font-bold text-slate-100 mt-1"></h3>
+                    <div class="card-specs text-xs text-slate-400 font-mono mt-0.5"></div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                <button class="btn-adjust-qty flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium">
+                    <i class="ph-bold ph-plus-minus text-indigo-400"></i>
+                    <span>Stock Qty</span>
+                </button>
+                <button class="btn-reserve-job flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium">
+                    <i class="ph-bold ph-bookmark-simple text-amber-400"></i>
+                    <span>Reserve Job</span>
+                </button>
+                <button class="btn-edit flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium">
+                    <i class="ph-bold ph-pencil text-slate-400"></i>
+                    <span>Edit</span>
+                </button>
+                <button class="btn-delete flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg bg-slate-800 hover:bg-rose-950/40 text-rose-400 border border-slate-700 hover:border-rose-800/50 font-medium">
+                    <i class="ph-bold ph-trash"></i>
+                    <span>Delete</span>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-4 gap-2 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80 text-xs">
+                <div>
+                    <span class="text-[10px] uppercase font-bold text-slate-500 block">In Stock</span>
+                    <span class="metric-qty font-mono font-bold text-emerald-400 text-sm">0</span>
+                </div>
+                <div>
+                    <span class="text-[10px] uppercase font-bold text-slate-500 block">Reserved</span>
+                    <span class="metric-reserved font-mono font-bold text-amber-400 text-sm">0</span>
+                </div>
+                <div>
+                    <span class="text-[10px] uppercase font-bold text-slate-500 block">Available</span>
+                    <span class="metric-avail font-mono font-bold text-cyan-400 text-sm">0</span>
+                </div>
+                <div>
+                    <span class="text-[10px] uppercase font-bold text-slate-500 block">Unit Cost</span>
+                    <span class="metric-price font-mono font-bold text-slate-200 text-xs">--</span>
+                </div>
+            </div>
+
+            <div class="card-price-calc text-[11px] text-slate-400 font-mono bg-slate-950/30 px-2 py-1 rounded border border-slate-800/40"></div>
+        </div>
+    </template>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                for (let registration of registrations) {
+                    registration.unregister();
+                }
+            });
+            const swCode = `
+                self.addEventListener('install', e => self.skipWaiting());
+                self.addEventListener('activate', e => self.clients.claim());
+                self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
+            `;
+            const blob = new Blob([swCode], { type: 'application/javascript' });
+            navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
+        }
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDHDDCPeOyHkDGpHZAU9AAdKm14M5LCT-0",
+            authDomain: "inventory-management-336e1.firebaseapp.com",
+            databaseURL: "https://inventory-management-336e1-default-rtdb.firebaseio.com",
+            projectId: "inventory-management-336e1",
+            storageBucket: "inventory-management-336e1.firebasestorage.app",
+            messagingSenderId: "339104206529",
+            appId: "1:339104206529:web:9713c92c01ff02e1234e40",
+            measurementId: "G-FTV8SW22YN"
+        };
+
+        let items = [];
+        let jobs = [];
+        let currentTab = "dashboard";
+        let activeAdjustItemId = null;
+        let shopSyncId = localStorage.getItem("metaltrack_shop_id") || "MS-336E";
+        let qrScannerInstance = null;
+        let db = null;
+        let dbConnected = false;
+
+        const DEFAULT_ITEMS = [
+            {
+                id: "item-1",
+                category: "sheets",
+                name: "Mild Steel Sheet A36",
+                sku: "SM-STEEL-14G",
+                thickness: "14 Gauge (0.075\")",
+                dimensions: "48\" x 96\"",
+                price: 85.00,
+                priceUnit: "sheet",
+                qty: 8,
+                minAlert: 3,
+                location: "Rack A-1"
+            },
+            {
+                id: "item-2",
+                category: "sheets",
+                name: "Stainless Steel 304 2B",
+                sku: "SM-SS-11G",
+                thickness: "11 Gauge (0.120\")",
+                dimensions: "1200mm x 2400mm",
+                price: 45.00,
+                priceUnit: "m2",
+                qty: 4,
+                minAlert: 2,
+                location: "Rack A-2"
+            },
+            {
+                id: "item-3",
+                category: "tubing",
+                name: "Square Steel Tubing A500",
+                sku: "TUB-SQ-2IN",
+                thickness: "2\" x 2\" x 11Ga",
+                dimensions: "24 ft stick",
+                price: 4.25,
+                priceUnit: "foot",
+                qty: 12,
+                minAlert: 5,
+                location: "Rack B-4"
+            }
+        ];
+
+        const DEFAULT_JOBS = [
+            {
+                id: "job-1",
+                itemId: "item-1",
+                jobName: "Job #102 - Exterior Gate",
+                reservedQty: 2,
+                date: new Date().toLocaleDateString()
+            }
+        ];
+
+        window.addEventListener("DOMContentLoaded", () => {
+            loadLocalStore();
+            setupEventListeners();
+            initFirebaseRealtimeDB();
+            renderCurrentView();
+            lazyLoadQRLibraries();
+        });
+
+        function loadLocalStore() {
+            try {
+                const storedItems = localStorage.getItem("metaltrack_items");
+                const storedJobs = localStorage.getItem("metaltrack_jobs");
+                items = storedItems ? JSON.parse(storedItems) : DEFAULT_ITEMS;
+                jobs = storedJobs ? JSON.parse(storedJobs) : DEFAULT_JOBS;
+            } catch (e) {
+                items = DEFAULT_ITEMS;
+                jobs = DEFAULT_JOBS;
+            }
+        }
+
+        function saveLocalStore() {
+            localStorage.setItem("metaltrack_items", JSON.stringify(items));
+            localStorage.setItem("metaltrack_jobs", JSON.stringify(jobs));
+            localStorage.setItem("metaltrack_shop_id", shopSyncId);
+        }
+
+        function initFirebaseRealtimeDB() {
+            try {
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                db = firebase.database();
+
+                const connectedRef = db.ref(".info/connected");
+                connectedRef.on("value", (snap) => {
+                    dbConnected = snap.val() === true;
+                    updateOnlineStatus();
+                });
+
+                attachShopListeners();
+            } catch (e) {
+                console.warn("Firebase initialize error, running local fallback:", e);
+                updateOnlineStatus();
+            }
+        }
+
+        function attachShopListeners() {
+            if (!db) return;
+
+            const shopRef = db.ref("shops/" + shopSyncId);
+
+            shopRef.child("inventory").on("value", (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    items = Array.isArray(data) ? data : Object.values(data);
+                } else {
+                    db.ref("shops/" + shopSyncId + "/inventory").set(items);
+                }
+                saveLocalStore();
+                renderCurrentView();
+            });
+
+            shopRef.child("reserves").on("value", (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    jobs = Array.isArray(data) ? data : Object.values(data);
+                } else {
+                    db.ref("shops/" + shopSyncId + "/reserves").set(jobs);
+                }
+                saveLocalStore();
+                renderCurrentView();
+            });
+        }
+
+        function pushDataToCloud() {
+            saveLocalStore();
+            renderCurrentView();
+
+            if (db && dbConnected) {
+                db.ref("shops/" + shopSyncId + "/inventory").set(items);
+                db.ref("shops/" + shopSyncId + "/reserves").set(jobs);
+            }
+        }
+
+        function updateOnlineStatus() {
+            const statusText = document.getElementById("connection-text");
+            const statusDot = document.getElementById("connection-dot");
+            const statusBadge = document.getElementById("connection-status");
+
+            if (dbConnected) {
+                statusText.textContent = `Cloud Synced (${shopSyncId})`;
+                statusDot.className = "w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse";
+                statusBadge.className = "flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-medium";
+            } else {
+                statusText.textContent = "Local / Offline Ready";
+                statusDot.className = "w-1.5 h-1.5 rounded-full bg-amber-400";
+                statusBadge.className = "flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[11px] font-medium";
+            }
+        }
+
+        function setupEventListeners() {
+            document.querySelectorAll(".tab-btn").forEach(btn => {
+                btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+            });
+
+            document.getElementById("input-search").addEventListener("input", renderCurrentView);
+            document.getElementById("checkbox-low-stock").addEventListener("change", renderCurrentView);
+
+            document.getElementById("btn-open-add-modal").addEventListener("click", () => openAddModal());
+            document.getElementById("btn-open-sync").addEventListener("click", () => openModal("modal-sync"));
+            document.getElementById("btn-open-gemini").addEventListener("click", () => openModal("modal-gemini"));
+
+            document.getElementById("form-item").addEventListener("submit", handleItemFormSubmit);
+            document.getElementById("form-reserve-job").addEventListener("submit", handleReserveJobSubmit);
+        }
+
+        function switchTab(tabName) {
+            currentTab = tabName;
+            
+            document.querySelectorAll(".tab-btn").forEach(btn => {
+                if (btn.dataset.tab === tabName) {
+                    btn.className = "tab-btn flex-1 min-w-[100px] flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all bg-indigo-600 text-white shadow-md";
+                } else {
+                    btn.className = "tab-btn flex-1 min-w-[100px] flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all";
+                }
+            });
+
+            document.getElementById("tab-content-dashboard").classList.toggle("hidden", tabName !== "dashboard");
+            document.getElementById("tab-content-materials").classList.toggle("hidden", !["sheets", "tubing", "remnants"].includes(tabName));
+            document.getElementById("tab-content-jobs").classList.toggle("hidden", tabName !== "jobs");
+
+            document.getElementById("search-filter-container").classList.toggle("hidden", tabName === "dashboard" || tabName === "jobs");
+
+            renderCurrentView();
+        }
+
+        function renderCurrentView() {
+            if (currentTab === "dashboard") {
+                renderDashboard();
+            } else if (["sheets", "tubing", "remnants"].includes(currentTab)) {
+                renderMaterialCards();
+            } else if (currentTab === "jobs") {
+                renderJobs();
+            }
+        }
+
+        function renderDashboard() {
+            let totalVal = 0;
+            let lowStockCount = 0;
+
+            items.forEach(item => {
+                const itemPrice = parseFloat(item.price) || 0;
+                totalVal += itemPrice * (parseInt(item.qty) || 0);
+
+                const totalReserved = jobs.filter(j => j.itemId === item.id).reduce((acc, j) => acc + (parseInt(j.reservedQty) || 0), 0);
+                const avail = item.qty - totalReserved;
+
+                if (avail <= (parseInt(item.minAlert) || 0)) {
+                    lowStockCount++;
+                }
+            });
+
+            document.getElementById("dash-val-total").textContent = `$${totalVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            document.getElementById("dash-total-items").textContent = items.length;
+            document.getElementById("dash-active-jobs").textContent = jobs.length;
+            document.getElementById("dash-low-stock").textContent = lowStockCount;
+
+            const summaryContainer = document.getElementById("dashboard-type-summary");
+            summaryContainer.innerHTML = "";
+
+            const categories = [
+                { id: "sheets", name: "Sheet Metal", icon: "ph-bounding-box" },
+                { id: "tubing", name: "Tubing & Pipe", icon: "ph-cylinder" },
+                { id: "remnants", name: "Remnants", icon: "ph-scissors" }
+            ];
+
+            categories.forEach(cat => {
+                const catItems = items.filter(i => i.category === cat.id);
+                const catCount = catItems.reduce((acc, i) => acc + (parseInt(i.qty) || 0), 0);
+
+                const card = document.createElement("div");
+                card.className = "bg-slate-950 p-3 rounded-lg border border-slate-800 flex items-center justify-between";
+                card.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <i class="ph-bold ${cat.icon} text-lg text-indigo-400"></i>
+                        <div>
+                            <div class="text-xs font-bold text-slate-200">${cat.name}</div>
+                            <div class="text-[11px] text-slate-500">${catItems.length} SKUs</div>
+                        </div>
+                    </div>
+                    <div class="font-mono font-bold text-sm text-slate-100">${catCount} units</div>
+                `;
+                summaryContainer.appendChild(card);
+            });
+
+            const recentContainer = document.getElementById("dashboard-recent-jobs");
+            recentContainer.innerHTML = "";
+
+            if (jobs.length === 0) {
+                recentContainer.innerHTML = `<div class="text-slate-500 text-center py-2">No active job allocations.</div>`;
+            } else {
+                jobs.slice(0, 5).forEach(job => {
+                    const item = items.find(i => i.id === job.itemId);
+                    const row = document.createElement("div");
+                    row.className = "flex items-center justify-between p-2 rounded bg-slate-950 border border-slate-800/80";
+                    row.innerHTML = `
+                        <div>
+                            <span class="font-bold text-slate-200 block">${job.jobName}</span>
+                            <span class="text-slate-500 text-[11px]">${item ? item.name : 'Unknown Item'}</span>
+                        </div>
+                        <div class="text-right font-mono">
+                            <span class="text-amber-400 font-bold">${job.reservedQty} reserved</span>
+                        </div>
+                    `;
+                    recentContainer.appendChild(row);
+                });
+            }
+        }
+
+        function renderMaterialCards() {
+            const container = document.getElementById("materials-container");
+            const emptyState = document.getElementById("empty-materials-state");
+            const template = document.getElementById("template-item-card");
+
+            container.innerHTML = "";
+
+            const query = document.getElementById("input-search").value.toLowerCase();
+            const lowStockOnly = document.getElementById("checkbox-low-stock").checked;
+
+            const filtered = items.filter(item => {
+                if (item.category !== currentTab) return false;
+
+                const totalReserved = jobs.filter(j => j.itemId === item.id).reduce((acc, j) => acc + (parseInt(j.reservedQty) || 0), 0);
+                const avail = item.qty - totalReserved;
+
+                if (lowStockOnly && avail > (parseInt(item.minAlert) || 0)) return false;
+
+                if (query) {
+                    const searchStr = `${item.name} ${item.sku} ${item.thickness} ${item.location}`.toLowerCase();
+                    if (!searchStr.includes(query)) return false;
+                }
+
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                emptyState.classList.remove("hidden");
+                return;
+            }
+            emptyState.classList.add("hidden");
+
+            filtered.forEach(item => {
+                const clone = template.content.cloneNode(true);
+
+                const reservedQty = jobs.filter(j => j.itemId === item.id).reduce((acc, j) => acc + (parseInt(j.reservedQty) || 0), 0);
+                const availQty = item.qty - reservedQty;
+
+                clone.querySelector(".badge-cat").textContent = item.category;
+                clone.querySelector(".badge-sku").textContent = item.sku || "NO-SKU";
+                clone.querySelector(".card-title").textContent = item.name;
+                clone.querySelector(".card-specs").textContent = `${item.thickness || ''} | ${item.dimensions || ''} | Loc: ${item.location || 'Unassigned'}`;
+
+                clone.querySelector(".metric-qty").textContent = item.qty;
+                clone.querySelector(".metric-reserved").textContent = reservedQty;
+                clone.querySelector(".metric-avail").textContent = availQty;
+                clone.querySelector(".metric-price").textContent = item.price ? `$${parseFloat(item.price).toFixed(2)}` : '--';
+
+                const priceCalcEl = clone.querySelector(".card-price-calc");
+                priceCalcEl.textContent = calculatePriceBreakdown(item);
+
+                clone.querySelector(".btn-adjust-qty").onclick = () => openAdjustQtyModal(item.id);
+                clone.querySelector(".btn-reserve-job").onclick = () => openReserveJobModal(item.id);
+                clone.querySelector(".btn-edit").onclick = () => openEditModal(item.id);
+                clone.querySelector(".btn-delete").onclick = () => deleteItem(item.id);
+
+                container.appendChild(clone);
+            });
+        }
+
+        function calculatePriceBreakdown(item) {
+            if (!item.price || item.price <= 0) return "Unit Price: Not set";
+
+            const unit = item.priceUnit || "sheet";
+            const price = parseFloat(item.price);
+
+            if (unit === "m2") {
+                return `Priced at $${price.toFixed(2)} / m²`;
+            }
+
+            if (unit === "sheet" && item.dimensions) {
+                const parsedSqM = parseAreaToSquareMeters(item.dimensions);
+                if (parsedSqM > 0) {
+                    const pricePerM2 = price / parsedSqM;
+                    return `Priced at $${price.toFixed(2)}/sheet (~$${pricePerM2.toFixed(2)} / m²)`;
+                }
+            }
+
+            return `Priced at $${price.toFixed(2)} / ${unit}`;
+        }
+
+        function parseAreaToSquareMeters(dimStr) {
+            try {
+                const inchMatch = dimStr.match(/(\d+(?:\.\d+)?)\s*"\s*x\s*(\d+(?:\.\d+)?)\s*"/i);
+                if (inchMatch) {
+                    const wInches = parseFloat(inchMatch[1]);
+                    const hInches = parseFloat(inchMatch[2]);
+                    return (wInches * hInches) * 0.00064516;
+                }
+
+                const mmMatch = dimStr.match(/(\d+(?:\.\d+)?)\s*mm\s*x\s*(\d+(?:\.\d+)?)\s*mm/i);
+                if (mmMatch) {
+                    return (parseFloat(mmMatch[1]) / 1000) * (parseFloat(mmMatch[2]) / 1000);
+                }
+            } catch (e) {
+                return 0;
+            }
+            return 0;
+        }
+
+        function renderJobs() {
+            const container = document.getElementById("jobs-container");
+            const emptyState = document.getElementById("empty-jobs-state");
+
+            container.innerHTML = "";
+
+            if (jobs.length === 0) {
+                emptyState.classList.remove("hidden");
+                return;
+            }
+            emptyState.classList.add("hidden");
+
+            jobs.forEach(job => {
+                const item = items.find(i => i.id === job.itemId);
+                const card = document.createElement("div");
+                card.className = "bg-slate-950 p-3.5 rounded-xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs";
+                card.innerHTML = `
+                    <div>
+                        <div class="font-bold text-slate-100 text-sm">${job.jobName}</div>
+                        <div class="text-indigo-400 font-medium mt-0.5">${item ? item.name : 'Unknown SKU'} (${item ? item.thickness : ''})</div>
+                        <div class="text-slate-500 text-[11px] mt-0.5">Allocated: ${job.date || 'N/A'}</div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-mono font-bold text-amber-400 text-sm bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg">${job.reservedQty} Reserved</span>
+                        <button onclick="fulfillJob('${job.id}')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-colors">Fulfill & Subtract</button>
+                        <button onclick="releaseJob('${job.id}')" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">Release</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.remove("hidden");
+            if (id === "modal-sync") renderLightweightSyncQR();
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add("hidden");
+            if (qrScannerInstance) {
+                try { qrScannerInstance.stop(); } catch(e){}
+            }
+        }
+
+        function openAddModal() {
+            document.getElementById("modal-item-title").textContent = "Add New Inventory Item";
+            document.getElementById("form-item").reset();
+            document.getElementById("item-id").value = "";
+            document.getElementById("item-category").value = ["sheets", "tubing", "remnants"].includes(currentTab) ? currentTab : "sheets";
+            openModal("modal-item");
+        }
+
+        function openEditModal(itemId) {
+            const item = items.find(i => i.id === itemId);
+            if (!item) return;
+
+            document.getElementById("modal-item-title").textContent = "Edit Material Item";
+            document.getElementById("item-id").value = item.id;
+            document.getElementById("item-category").value = item.category || "sheets";
+            document.getElementById("item-name").value = item.name || "";
+            document.getElementById("item-sku").value = item.sku || "";
+            document.getElementById("item-thickness").value = item.thickness || "";
+            document.getElementById("item-dimensions").value = item.dimensions || "";
+            document.getElementById("item-price").value = item.price || "";
+            document.getElementById("item-price-unit").value = item.priceUnit || "sheet";
+            document.getElementById("item-qty").value = item.qty || 0;
+            document.getElementById("item-min-alert").value = item.minAlert || 2;
+            document.getElementById("item-location").value = item.location || "";
+
+            openModal("modal-item");
+        }
+
+        function handleItemFormSubmit(e) {
+            e.preventDefault();
+
+            const id = document.getElementById("item-id").value;
+            const newItem = {
+                id: id || `item-${Date.now()}`,
+                category: document.getElementById("item-category").value,
+                name: document.getElementById("item-name").value,
+                sku: document.getElementById("item-sku").value || `SKU-${Math.floor(1000 + Math.random() * 9000)}`,
+                thickness: document.getElementById("item-thickness").value,
+                dimensions: document.getElementById("item-dimensions").value,
+                price: parseFloat(document.getElementById("item-price").value) || 0,
+                priceUnit: document.getElementById("item-price-unit").value,
+                qty: parseInt(document.getElementById("item-qty").value) || 0,
+                minAlert: parseInt(document.getElementById("item-min-alert").value) || 0,
+                location: document.getElementById("item-location").value
+            };
+
+            if (id) {
+                const index = items.findIndex(i => i.id === id);
+                if (index !== -1) items[index] = newItem;
+            } else {
+                items.push(newItem);
+            }
+
+            pushDataToCloud();
+            closeModal("modal-item");
+        }
+
+        function deleteItem(id) {
+            if (confirm("Are you sure you want to delete this material item?")) {
+                items = items.filter(i => i.id !== id);
+                jobs = jobs.filter(j => j.itemId !== id);
+                pushDataToCloud();
+            }
+        }
+
+        function openAdjustQtyModal(id) {
+            activeAdjustItemId = id;
+            const item = items.find(i => i.id === id);
+            if (!item) return;
+
+            document.getElementById("adjust-qty-item-name").textContent = `${item.name} (Current Stock: ${item.qty})`;
+            document.getElementById("adjust-qty-input").value = item.qty;
+            openModal("modal-adjust-qty");
+        }
+
+        function stepQty(delta) {
+            const input = document.getElementById("adjust-qty-input");
+            let val = parseInt(input.value) || 0;
+            val = Math.max(0, val + delta);
+            input.value = val;
+        }
+
+        function saveQtyAdjustment() {
+            if (!activeAdjustItemId) return;
+            const item = items.find(i => i.id === activeAdjustItemId);
+            if (item) {
+                item.qty = parseInt(document.getElementById("adjust-qty-input").value) || 0;
+                pushDataToCloud();
+            }
+            closeModal("modal-adjust-qty");
+        }
+
+        function openReserveJobModal(itemId) {
+            const item = items.find(i => i.id === itemId);
+            if (!item) return;
+
+            document.getElementById("reserve-item-id").value = itemId;
+            document.getElementById("reserve-item-name").textContent = `${item.name} (${item.thickness})`;
+            document.getElementById("reserve-job-name").value = "";
+            document.getElementById("reserve-job-qty").value = 1;
+
+            openModal("modal-reserve-job");
+        }
+
+        function handleReserveJobSubmit(e) {
+            e.preventDefault();
+
+            const itemId = document.getElementById("reserve-item-id").value;
+            const jobName = document.getElementById("reserve-job-name").value;
+            const qty = parseInt(document.getElementById("reserve-job-qty").value) || 1;
+
+            jobs.push({
+                id: `job-${Date.now()}`,
+                itemId: itemId,
+                jobName: jobName,
+                reservedQty: qty,
+                date: new Date().toLocaleDateString()
+            });
+
+            pushDataToCloud();
+            closeModal("modal-reserve-job");
+        }
+
+        function fulfillJob(jobId) {
+            const job = jobs.find(j => j.id === jobId);
+            if (!job) return;
+
+            const item = items.find(i => i.id === job.itemId);
+            if (item) {
+                item.qty = Math.max(0, item.qty - job.reservedQty);
+            }
+
+            jobs = jobs.filter(j => j.id !== jobId);
+            pushDataToCloud();
+        }
+
+        function releaseJob(jobId) {
+            jobs = jobs.filter(j => j.id !== jobId);
+            pushDataToCloud();
+        }
+
+        function lazyLoadQRLibraries() {
+            if (window.QRCode && window.Html5Qrcode) return;
+
+            const s1 = document.createElement("script");
+            s1.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
+            document.head.appendChild(s1);
+
+            const s2 = document.createElement("script");
+            s2.src = "https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js";
+            document.head.appendChild(s2);
+        }
+
+        function toggleSyncSubTab(subTab) {
+            document.getElementById("sync-subtab-show").classList.toggle("hidden", subTab !== "show");
+            document.getElementById("sync-subtab-scan").classList.toggle("hidden", subTab !== "scan");
+            document.getElementById("sync-subtab-manual").classList.toggle("hidden", subTab !== "manual");
+
+            document.getElementById("tab-qr-show").className = subTab === "show" 
+                ? "flex-1 py-2 font-semibold border-b-2 border-indigo-500 text-indigo-400" 
+                : "flex-1 py-2 font-semibold border-b-2 border-transparent text-slate-400";
+            document.getElementById("tab-qr-scan").className = subTab === "scan" 
+                ? "flex-1 py-2 font-semibold border-b-2 border-indigo-500 text-indigo-400" 
+                : "flex-1 py-2 font-semibold border-b-2 border-transparent text-slate-400";
+            document.getElementById("tab-qr-manual").className = subTab === "manual" 
+                ? "flex-1 py-2 font-semibold border-b-2 border-indigo-500 text-indigo-400" 
+                : "flex-1 py-2 font-semibold border-b-2 border-transparent text-slate-400";
+
+            if (subTab === "scan") {
+                startCameraQRScanner();
+            } else if (qrScannerInstance) {
+                try { qrScannerInstance.stop(); } catch(e){}
+            }
+        }
+
+        function renderLightweightSyncQR() {
+            document.getElementById("sync-shop-code").textContent = shopSyncId;
+            const container = document.getElementById("qrcode-container");
+            container.innerHTML = "";
+
+            if (window.QRCode) {
+                new QRCode(container, {
+                    text: shopSyncId,
+                    width: 160,
+                    height: 160,
+                    colorDark: "#020617",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.L
+                });
+            } else {
+                container.innerHTML = `<span class="text-indigo-400 font-mono font-bold text-lg">${shopSyncId}</span>`;
+            }
+        }
+
+        function copyShopCodeToClipboard() {
+            const temp = document.createElement("textarea");
+            temp.value = shopSyncId;
+            document.body.appendChild(temp);
+            temp.select();
+            document.execCommand("copy");
+            document.body.removeChild(temp);
+            alert(`Shop Sync ID (${shopSyncId}) copied!`);
+        }
+
+        function startCameraQRScanner() {
+            if (!window.Html5Qrcode) return;
+
+            if (qrScannerInstance) {
+                try { qrScannerInstance.stop(); } catch(e){}
+            }
+
+            qrScannerInstance = new Html5Qrcode("reader");
+            qrScannerInstance.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: 180 },
+                (decodedText) => {
+                    handleScannedShopId(decodedText);
+                    qrScannerInstance.stop();
+                },
+                () => {}
+            ).catch(err => {
+                console.warn("Camera start prevented:", err);
+            });
+        }
+
+        function handleQRFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file || !window.Html5Qrcode) return;
+
+            const scanner = new Html5Qrcode("reader");
+            scanner.scanFile(file, true)
+                .then(decodedText => {
+                    handleScannedShopId(decodedText);
+                })
+                .catch(err => {
+                    alert("Could not read QR code from image. Try manual input!");
+                });
+        }
+
+        function applyManualShopId() {
+            const code = document.getElementById("input-manual-shop-id").value.trim().toUpperCase();
+            if (code) handleScannedShopId(code);
+        }
+
+        function handleScannedShopId(code) {
+            shopSyncId = code;
+            saveLocalStore();
+            closeModal("modal-sync");
+            attachShopListeners();
+            alert(`Successfully connected to Shop Real-Time Channel: ${code}`);
+        }
+
+        function calcSteelWeight() {
+            const thick = parseFloat(document.getElementById("gem-calc-thick").value) || 0;
+            const area = parseFloat(document.getElementById("gem-calc-area").value) || 0;
+            const lbsPerSqFt = thick * 40.8;
+            const totalLbs = lbsPerSqFt * area;
+            document.getElementById("gem-weight-result").textContent = `~ ${totalLbs.toFixed(1)} lbs`;
+        }
+    </script>
+</body>
+</html>
