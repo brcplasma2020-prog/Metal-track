@@ -254,6 +254,7 @@
                             <option value="sheet">Per Sheet</option>
                             <option value="m2">Per Sq. Meter (m²)</option>
                             <option value="sqft">Per Sq. Foot (ft²)</option>
+                            <option value="lb">Per Pound (/lb)</option>
                             <option value="stick">Per Stick / Pipe</option>
                             <option value="foot">Per Foot (/ft)</option>
                             <option value="unit">Per Unit / Each</option>
@@ -732,11 +733,22 @@
                 const itemPrice = parseFloat(item.price) || 0;
                 let unitCostTotal = itemPrice;
 
-                // Calculate stock valuation correctly based on unit basis
                 if (item.category === "tubing") {
                     const lengthVal = parseFloat(parseTubeLength(item.dimensions)) || 20;
                     if (item.priceUnit === "foot") {
-                        unitCostTotal = itemPrice * lengthVal; // Cost per stick = price per foot * length
+                        unitCostTotal = itemPrice * lengthVal;
+                    }
+                } else if (item.category === "sheets" || item.category === "remnants") {
+                    const parsedSqM = parseAreaToSquareMeters(item.dimensions);
+                    const parsedSqFt = parseAreaToSquareFeet(item.dimensions);
+                    const sheetWeight = calculateSheetWeightLbs(item.thickness, item.dimensions);
+
+                    if (item.priceUnit === "m2" && parsedSqM > 0) {
+                        unitCostTotal = itemPrice * parsedSqM;
+                    } else if (item.priceUnit === "sqft" && parsedSqFt > 0) {
+                        unitCostTotal = itemPrice * parsedSqFt;
+                    } else if (item.priceUnit === "lb" && sheetWeight > 0) {
+                        unitCostTotal = itemPrice * sheetWeight;
                     }
                 }
 
@@ -848,7 +860,7 @@
                 clone.querySelector(".badge-cat").textContent = item.category;
                 clone.querySelector(".badge-sku").textContent = item.sku || "NO-SKU";
                 clone.querySelector(".card-title").textContent = item.name;
-                clone.querySelector(".card-specs").textContent = `${item.thickness || ''} | Length: ${item.dimensions || '20 ft'} | Loc: ${item.location || 'Unassigned'}`;
+                clone.querySelector(".card-specs").textContent = `${item.thickness || ''} | Size: ${item.dimensions || ''} | Loc: ${item.location || 'Unassigned'}`;
 
                 clone.querySelector(".metric-qty").textContent = item.qty;
                 clone.querySelector(".metric-reserved").textContent = reservedQty;
@@ -873,7 +885,6 @@
             const unit = item.priceUnit || "sheet";
             const price = parseFloat(item.price);
 
-            // Tubing & Pipe calculation handling per foot vs per stick
             if (item.category === "tubing") {
                 const lengthVal = parseFloat(parseTubeLength(item.dimensions)) || 20;
                 if (unit === "foot") {
@@ -886,16 +897,41 @@
             }
 
             const parsedSqM = item.dimensions ? parseAreaToSquareMeters(item.dimensions) : 0;
+            const parsedSqFt = item.dimensions ? parseAreaToSquareFeet(item.dimensions) : 0;
+            const sheetWeightLbs = calculateSheetWeightLbs(item.thickness, item.dimensions);
 
             if (unit === "m2") {
                 const sheetTotal = parsedSqM > 0 ? price * parsedSqM : 0;
-                return sheetTotal > 0 
-                    ? `Price: $${price.toFixed(2)} / m²  (~ $${sheetTotal.toFixed(2)} / sheet)` 
+                const priceLb = sheetWeightLbs > 0 && sheetTotal > 0 ? sheetTotal / sheetWeightLbs : 0;
+                return priceLb > 0 
+                    ? `Price: $${price.toFixed(2)}/m²  ➔  $${priceLb.toFixed(2)}/lb  (~ $${sheetTotal.toFixed(2)}/sheet)` 
                     : `Price: $${price.toFixed(2)} / m²`;
             }
 
-            if ((unit === "sheet" || item.category === "sheets" || item.category === "remnants") && parsedSqM > 0) {
+            if (unit === "sqft") {
+                const sheetTotal = parsedSqFt > 0 ? price * parsedSqFt : 0;
+                const priceLb = sheetWeightLbs > 0 && sheetTotal > 0 ? sheetTotal / sheetWeightLbs : 0;
+                return priceLb > 0 
+                    ? `Price: $${price.toFixed(2)}/ft²  ➔  $${priceLb.toFixed(2)}/lb  (~ $${sheetTotal.toFixed(2)}/sheet)` 
+                    : `Price: $${price.toFixed(2)} / ft²`;
+            }
+
+            if (unit === "lb") {
+                const sheetTotal = sheetWeightLbs > 0 ? price * sheetWeightLbs : 0;
+                const priceSqM = parsedSqM > 0 && sheetTotal > 0 ? sheetTotal / parsedSqM : 0;
+                return priceSqM > 0 
+                    ? `Price: $${price.toFixed(2)}/lb  ➔  $${priceSqM.toFixed(2)}/m²  (~ $${sheetTotal.toFixed(2)}/sheet)` 
+                    : `Price: $${price.toFixed(2)} / lb (${sheetWeightLbs.toFixed(1)} lbs/sheet)`;
+            }
+
+            // Default Sheet pricing: Show price/sheet ➔ price/m² and price/lb
+            if (parsedSqM > 0) {
                 const pricePerM2 = price / parsedSqM;
+                const pricePerLb = sheetWeightLbs > 0 ? price / sheetWeightLbs : 0;
+                
+                if (pricePerLb > 0) {
+                    return `Price: $${price.toFixed(2)}/sheet  ➔  $${pricePerM2.toFixed(2)}/m²  |  $${pricePerLb.toFixed(2)}/lb`;
+                }
                 return `Price: $${price.toFixed(2)} / ${unit}  ➔  $${pricePerM2.toFixed(2)} / m²`;
             }
 
@@ -925,6 +961,67 @@
                 return 0;
             }
             return 0;
+        }
+
+        function parseAreaToSquareFeet(dimStr) {
+            try {
+                const inchMatch = dimStr.match(/(\d+(?:\.\d+)?)\s*"?\s*x\s*(\d+(?:\.\d+)?)\s*"?/i);
+                if (inchMatch && !dimStr.toLowerCase().includes("mm")) {
+                    const wInches = parseFloat(inchMatch[1]);
+                    const hInches = parseFloat(inchMatch[2]);
+                    return (wInches * hInches) / 144;
+                }
+
+                const sqM = parseAreaToSquareMeters(dimStr);
+                return sqM * 10.7639;
+            } catch (e) {
+                return 0;
+            }
+            return 0;
+        }
+
+        function parseThicknessInches(thicknessStr) {
+            if (!thicknessStr) return 0.075; // Default 14 Ga approx
+
+            // Standard Gauge Conversions
+            const gaugeMap = {
+                "10": 0.1345,
+                "11": 0.1196,
+                "12": 0.1046,
+                "14": 0.0747,
+                "16": 0.0598,
+                "18": 0.0478,
+                "20": 0.0359,
+                "22": 0.0299,
+                "24": 0.0239
+            };
+
+            const gaMatch = thicknessStr.match(/(\d+)\s*(?:ga|gauge)/i);
+            if (gaMatch && gaugeMap[gaMatch[1]]) {
+                return gaugeMap[gaMatch[1]];
+            }
+
+            const decMatch = thicknessStr.match(/(\d+\.\d+)/);
+            if (decMatch) {
+                return parseFloat(decMatch[1]);
+            }
+
+            const fracMatch = thicknessStr.match(/(\d+)\/(\d+)/);
+            if (fracMatch) {
+                return parseFloat(fracMatch[1]) / parseFloat(fracMatch[2]);
+            }
+
+            return 0.075;
+        }
+
+        function calculateSheetWeightLbs(thicknessStr, dimStr) {
+            const thickInches = parseThicknessInches(thicknessStr);
+            const areaSqFt = parseAreaToSquareFeet(dimStr);
+
+            if (thickInches <= 0 || areaSqFt <= 0) return 0;
+
+            // Steel Weight = Area (ft²) * Thickness (in) * 40.8 (lbs/ft²/in)
+            return areaSqFt * thickInches * 40.8;
         }
 
         function onCategoryChange() {
@@ -1030,7 +1127,7 @@
             const dimensions = document.getElementById("item-dimensions").value;
 
             if (!dimensions) {
-                alert("Length or Dimensions specification is required.");
+                alert("Dimensions specification is required.");
                 return;
             }
 
