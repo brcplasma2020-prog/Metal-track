@@ -214,7 +214,7 @@
                 <input type="hidden" id="item-id">
                 <div>
                     <label class="block text-slate-400 mb-1 font-medium">Category Type</label>
-                    <select id="item-category" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500">
+                    <select id="item-category" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500" onchange="onCategoryChange()">
                         <option value="sheets">Sheet Metal</option>
                         <option value="tubing">Tubing & Pipe</option>
                         <option value="remnants">Remnant / Drop</option>
@@ -237,16 +237,16 @@
                         <label class="block text-slate-400 mb-1 font-medium">Gauge / Thickness</label>
                         <input type="text" id="item-thickness" placeholder='e.g. 14 Gauge (0.075")' class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500">
                     </div>
-                    <div>
-                        <label class="block text-slate-400 mb-1 font-medium">Dimensions / Size</label>
-                        <input type="text" id="item-dimensions" placeholder='e.g. 48" x 96" or 1200mm x 2400mm' class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500">
+                    <div id="container-dimensions">
+                        <label id="label-dimensions" class="block text-slate-400 mb-1 font-medium">Dimensions / Size *</label>
+                        <input type="text" id="item-dimensions" placeholder='e.g. 48" x 96"' class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500">
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-slate-400 mb-1 font-medium">Unit Price ($)</label>
-                        <input type="number" step="0.01" id="item-price" placeholder="0.00" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500 font-mono">
+                        <label class="block text-slate-400 mb-1 font-medium">Unit Price ($) *</label>
+                        <input type="number" step="0.01" id="item-price" placeholder="0.00" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 focus:border-indigo-500 font-mono">
                     </div>
                     <div>
                         <label class="block text-slate-400 mb-1 font-medium">Price Unit Basis</label>
@@ -557,7 +557,7 @@
                 name: "Square Steel Tubing A500",
                 sku: "TUB-SQ-2IN",
                 thickness: "2\" x 2\" x 11Ga",
-                dimensions: "24 ft stick",
+                dimensions: "24 ft",
                 price: 4.25,
                 priceUnit: "foot",
                 qty: 12,
@@ -730,7 +730,17 @@
 
             items.forEach(item => {
                 const itemPrice = parseFloat(item.price) || 0;
-                totalVal += itemPrice * (parseInt(item.qty) || 0);
+                let unitCostTotal = itemPrice;
+
+                // Calculate stock valuation correctly based on unit basis
+                if (item.category === "tubing") {
+                    const lengthVal = parseFloat(parseTubeLength(item.dimensions)) || 20;
+                    if (item.priceUnit === "foot") {
+                        unitCostTotal = itemPrice * lengthVal; // Cost per stick = price per foot * length
+                    }
+                }
+
+                totalVal += unitCostTotal * (parseInt(item.qty) || 0);
 
                 const totalReserved = jobs.filter(j => j.itemId === item.id).reduce((acc, j) => acc + (parseInt(j.reservedQty) || 0), 0);
                 const avail = item.qty - totalReserved;
@@ -838,7 +848,7 @@
                 clone.querySelector(".badge-cat").textContent = item.category;
                 clone.querySelector(".badge-sku").textContent = item.sku || "NO-SKU";
                 clone.querySelector(".card-title").textContent = item.name;
-                clone.querySelector(".card-specs").textContent = `${item.thickness || ''} | ${item.dimensions || ''} | Loc: ${item.location || 'Unassigned'}`;
+                clone.querySelector(".card-specs").textContent = `${item.thickness || ''} | Length: ${item.dimensions || '20 ft'} | Loc: ${item.location || 'Unassigned'}`;
 
                 clone.querySelector(".metric-qty").textContent = item.qty;
                 clone.querySelector(".metric-reserved").textContent = reservedQty;
@@ -862,6 +872,19 @@
 
             const unit = item.priceUnit || "sheet";
             const price = parseFloat(item.price);
+
+            // Tubing & Pipe calculation handling per foot vs per stick
+            if (item.category === "tubing") {
+                const lengthVal = parseFloat(parseTubeLength(item.dimensions)) || 20;
+                if (unit === "foot") {
+                    const stickTotal = price * lengthVal;
+                    return `Price: $${price.toFixed(2)} / ft  ➔  $${stickTotal.toFixed(2)} / stick (${lengthVal} ft)`;
+                } else {
+                    const footPrice = price / lengthVal;
+                    return `Price: $${price.toFixed(2)} / stick  ➔  $${footPrice.toFixed(2)} / ft (${lengthVal} ft)`;
+                }
+            }
+
             const parsedSqM = item.dimensions ? parseAreaToSquareMeters(item.dimensions) : 0;
 
             if (unit === "m2") {
@@ -877,6 +900,12 @@
             }
 
             return `Price: $${price.toFixed(2)} / ${unit}`;
+        }
+
+        function parseTubeLength(dimStr) {
+            if (!dimStr) return "20";
+            const match = dimStr.match(/(\d+(?:\.\d+)?)/);
+            return match ? match[1] : "20";
         }
 
         function parseAreaToSquareMeters(dimStr) {
@@ -896,6 +925,26 @@
                 return 0;
             }
             return 0;
+        }
+
+        function onCategoryChange() {
+            const cat = document.getElementById("item-category").value;
+            const dimLabel = document.getElementById("label-dimensions");
+            const dimInput = document.getElementById("item-dimensions");
+            const priceUnit = document.getElementById("item-price-unit");
+
+            if (cat === "tubing") {
+                dimLabel.textContent = "Stick Length (ft) *";
+                dimInput.placeholder = "e.g. 20 ft or 24 ft";
+                if (!dimInput.value || dimInput.value.includes("x")) {
+                    dimInput.value = "24 ft";
+                }
+                priceUnit.value = "foot";
+            } else {
+                dimLabel.textContent = "Dimensions / Size *";
+                dimInput.placeholder = 'e.g. 48" x 96"';
+                priceUnit.value = cat === "sheets" ? "sheet" : "m2";
+            }
         }
 
         function renderJobs() {
@@ -947,6 +996,7 @@
             document.getElementById("form-item").reset();
             document.getElementById("item-id").value = "";
             document.getElementById("item-category").value = ["sheets", "tubing", "remnants"].includes(currentTab) ? currentTab : "sheets";
+            onCategoryChange();
             openModal("modal-item");
         }
 
@@ -957,6 +1007,8 @@
             document.getElementById("modal-item-title").textContent = "Edit Material Item";
             document.getElementById("item-id").value = item.id;
             document.getElementById("item-category").value = item.category || "sheets";
+            onCategoryChange();
+
             document.getElementById("item-name").value = item.name || "";
             document.getElementById("item-sku").value = item.sku || "";
             document.getElementById("item-thickness").value = item.thickness || "";
@@ -974,13 +1026,21 @@
             e.preventDefault();
 
             const id = document.getElementById("item-id").value;
+            const category = document.getElementById("item-category").value;
+            const dimensions = document.getElementById("item-dimensions").value;
+
+            if (!dimensions) {
+                alert("Length or Dimensions specification is required.");
+                return;
+            }
+
             const newItem = {
                 id: id || `item-${Date.now()}`,
-                category: document.getElementById("item-category").value,
+                category: category,
                 name: document.getElementById("item-name").value,
                 sku: document.getElementById("item-sku").value || `SKU-${Math.floor(1000 + Math.random() * 9000)}`,
                 thickness: document.getElementById("item-thickness").value,
-                dimensions: document.getElementById("item-dimensions").value,
+                dimensions: dimensions,
                 price: parseFloat(document.getElementById("item-price").value) || 0,
                 priceUnit: document.getElementById("item-price-unit").value,
                 qty: parseInt(document.getElementById("item-qty").value) || 0,
