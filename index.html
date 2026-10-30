@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MetalTrack - Real-Time Cloud Inventory</title>
 
-    <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIk1ldGFsVHJhY2sgSW52ZW50b3J5IiwKICAic2hvcnRfbmFtZSI6ICJNZXRhbFRyYWNrIiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwYjBmMTkiLAogICJ0aGVtZV9jb2xvciI6ICIjMGIwZjE5IiwKICAib3JpZW50YXRpb24iOiAicG9ydHJhaXQiLAogICJpY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBIMTJaeUI0SnljT1pXRmtKeUJqY21sdGIyNDlNVEF3SURFd01IeHpPdzA9IiwKICAgICAgInNpemVzIjogIjE5MngxOTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIiwKICAgICAgInB1cnBvc2UiOiAiYW55IG1hc2thYmxlIgogICAgf50gXSwKICAic3RhcnRfdXJsIjogIi4ifQ==">
+    <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIk1ldGFsVHJhY2sgSW52ZW50b3J5IiwKICAic2hvcnRfbmFtZSI6ICJNZXRhbFRyYWNrIiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwYjBmMTkiLAogICJ0aGVtZV9jb2xvciI6ICIjMGIwZjE5IiwKICAib3JpZW50YXRpb24iOiAicG9ydHJhaXQiLAogICJpY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBIMTJaeUI0SnljT1pXRmtKeUJqY21sdGIyNDlNVEF3SURFd01IeHpPdzA9IiwKICAgICAgInNpemVzIjogIjE5MngxOTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIiwKICAgICAgInB1cnBvc2UiOiAiYW55IG1hc2thYmxlIgogICAgfSxdLAogICJzdGFydF91cmwiOiAiLiJ9">
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -862,26 +862,27 @@
 
             const unit = item.priceUnit || "sheet";
             const price = parseFloat(item.price);
+            const parsedSqM = item.dimensions ? parseAreaToSquareMeters(item.dimensions) : 0;
 
             if (unit === "m2") {
-                return `Priced at $${price.toFixed(2)} / m²`;
+                const sheetTotal = parsedSqM > 0 ? price * parsedSqM : 0;
+                return sheetTotal > 0 
+                    ? `Price: $${price.toFixed(2)} / m²  (~ $${sheetTotal.toFixed(2)} / sheet)` 
+                    : `Price: $${price.toFixed(2)} / m²`;
             }
 
-            if (unit === "sheet" && item.dimensions) {
-                const parsedSqM = parseAreaToSquareMeters(item.dimensions);
-                if (parsedSqM > 0) {
-                    const pricePerM2 = price / parsedSqM;
-                    return `Priced at $${price.toFixed(2)}/sheet (~$${pricePerM2.toFixed(2)} / m²)`;
-                }
+            if ((unit === "sheet" || item.category === "sheets" || item.category === "remnants") && parsedSqM > 0) {
+                const pricePerM2 = price / parsedSqM;
+                return `Price: $${price.toFixed(2)} / ${unit}  ➔  $${pricePerM2.toFixed(2)} / m²`;
             }
 
-            return `Priced at $${price.toFixed(2)} / ${unit}`;
+            return `Price: $${price.toFixed(2)} / ${unit}`;
         }
 
         function parseAreaToSquareMeters(dimStr) {
             try {
-                const inchMatch = dimStr.match(/(\d+(?:\.\d+)?)\s*"\s*x\s*(\d+(?:\.\d+)?)\s*"/i);
-                if (inchMatch) {
+                const inchMatch = dimStr.match(/(\d+(?:\.\d+)?)\s*"?\s*x\s*(\d+(?:\.\d+)?)\s*"?/i);
+                if (inchMatch && !dimStr.toLowerCase().includes("mm")) {
                     const wInches = parseFloat(inchMatch[1]);
                     const hInches = parseFloat(inchMatch[2]);
                     return (wInches * hInches) * 0.00064516;
@@ -1184,21 +1185,21 @@
             if (code) handleScannedShopId(code);
         }
 
-    function handleScannedShopId(code) {
-        shopSyncId = code;
-        saveLocalStore();
-        closeModal("modal-sync");
-        attachShopListeners();
-        alert(`Successfully connected to Shop Real-Time Channel: ${code}`);
-    }
+        function handleScannedShopId(code) {
+            shopSyncId = code;
+            saveLocalStore();
+            closeModal("modal-sync");
+            attachShopListeners();
+            alert(`Successfully connected to Shop Real-Time Channel: ${code}`);
+        }
 
-    function calcSteelWeight() {
-        const thick = parseFloat(document.getElementById("gem-calc-thick").value) || 0;
-        const area = parseFloat(document.getElementById("gem-calc-area").value) || 0;
-        const lbsPerSqFt = thick * 40.8;
-        const totalLbs = lbsPerSqFt * area;
-        document.getElementById("gem-weight-result").textContent = `~ ${totalLbs.toFixed(1)} lbs`;
-    }
+        function calcSteelWeight() {
+            const thick = parseFloat(document.getElementById("gem-calc-thick").value) || 0;
+            const area = parseFloat(document.getElementById("gem-calc-area").value) || 0;
+            const lbsPerSqFt = thick * 40.8;
+            const totalLbs = lbsPerSqFt * area;
+            document.getElementById("gem-weight-result").textContent = `~ ${totalLbs.toFixed(1)} lbs`;
+        }
     </script>
 </body>
 </html>
