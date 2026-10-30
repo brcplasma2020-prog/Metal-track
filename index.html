@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MetalTrack - Real-Time Cloud Inventory</title>
 
-    <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIk1ldGFsVHJhY2sgSW52ZW50b3J5IiwKICAic2hvcnRfbmFtZSI6ICJNZXRhbFRyYWNrIiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwYjBmMTkiLAogICJ0aGVtZV9jb2xvciI6ICIjMGIwZjE5IiwKICAib3JpZW50YXRpb24iOiAicG9ydHJhaXQiLAogICJpY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBIMTJaeUI0SnljT1pXRmtKeUJqY21sdGIyNDlNVEF3SURFd01IeHpPdzA9IiwKICAgICAgInNpemVzIjogIjE5MngxOTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIiwKICAgICAgInB1cnBvc2UiOiAiYW55IG1hc2thYmxlIgogICAgfQogIF0KfQ==">
+    <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIk1ldGFsVHJhY2sgSW52ZW50b3J5IiwKICAic2hvcnRfbmFtZSI6ICJNZXRhbFRyYWNrIiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwYjBmMTkiLAogICJ0aGVtZV9jb2xvciI6ICIjMGIwZjE5IiwKICAib3JpZW50YXRpb24iOiAicG9ydHJhaXQiLAogICJpY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBIMTJaeUI0SnljT1pXRmtKeUJqY21sdGIyNDlNVEF3SURFd01IeHpPdzA9IiwKICAgICAgInNpemVzIjogIjE5MngxOTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIiwKICAgICAgInB1cnBvc2UiOiAiYW55IG1hc2thYmxlIgogICAgf50gXSwKICAic3RhcnRfdXJsIjogIi4ifQ==">
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -627,12 +627,11 @@
 
             const shopRef = db.ref("shops/" + shopSyncId);
 
-            // Listen for remote Inventory changes and filter out ghost/null entries
             shopRef.child("inventory").on("value", (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
                     const rawItems = Array.isArray(data) ? data : Object.values(data);
-                    items = rawItems.filter(item => item && item.id); // Strips out ghost/null items
+                    items = rawItems.filter(item => item && item.id);
                 } else {
                     db.ref("shops/" + shopSyncId + "/inventory").set(items);
                 }
@@ -640,7 +639,6 @@
                 renderCurrentView();
             });
 
-            // Listen for remote Job Reserves changes and filter out ghost/null entries
             shopRef.child("reserves").on("value", (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
@@ -1067,7 +1065,6 @@
         }
 
         function fulfillJob(jobId) {
-        function fulfillJob(jobId) {
             const job = jobs.find(j => j.id === jobId);
             if (job) {
                 const item = items.find(i => i.id === job.itemId);
@@ -1187,21 +1184,21 @@
             if (code) handleScannedShopId(code);
         }
 
-        function handleScannedShopId(code) {
-            shopSyncId = code;
-            saveLocalStore();
-            closeModal("modal-sync");
-            attachShopListeners();
-            alert(`Successfully connected to Shop Real-Time Channel: ${code}`);
-        }
+    function handleScannedShopId(code) {
+        shopSyncId = code;
+        saveLocalStore();
+        closeModal("modal-sync");
+        attachShopListeners();
+        alert(`Successfully connected to Shop Real-Time Channel: ${code}`);
+    }
 
-        function calcSteelWeight() {
-            const thick = parseFloat(document.getElementById("gem-calc-thick").value) || 0;
-            const area = parseFloat(document.getElementById("gem-calc-area").value) || 0;
-            const lbsPerSqFt = thick * 40.8;
-            const totalLbs = lbsPerSqFt * area;
-            document.getElementById("gem-weight-result").textContent = `~ ${totalLbs.toFixed(1)} lbs`;
-        }
+    function calcSteelWeight() {
+        const thick = parseFloat(document.getElementById("gem-calc-thick").value) || 0;
+        const area = parseFloat(document.getElementById("gem-calc-area").value) || 0;
+        const lbsPerSqFt = thick * 40.8;
+        const totalLbs = lbsPerSqFt * area;
+        document.getElementById("gem-weight-result").textContent = `~ ${totalLbs.toFixed(1)} lbs`;
+    }
     </script>
 </body>
 </html>
