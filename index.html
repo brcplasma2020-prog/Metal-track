@@ -627,10 +627,12 @@
 
             const shopRef = db.ref("shops/" + shopSyncId);
 
+            // Listen for remote Inventory changes and filter out ghost/null entries
             shopRef.child("inventory").on("value", (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
-                    items = Array.isArray(data) ? data : Object.values(data);
+                    const rawItems = Array.isArray(data) ? data : Object.values(data);
+                    items = rawItems.filter(item => item && item.id); // Strips out ghost/null items
                 } else {
                     db.ref("shops/" + shopSyncId + "/inventory").set(items);
                 }
@@ -638,10 +640,12 @@
                 renderCurrentView();
             });
 
+            // Listen for remote Job Reserves changes and filter out ghost/null entries
             shopRef.child("reserves").on("value", (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
-                    jobs = Array.isArray(data) ? data : Object.values(data);
+                    const rawJobs = Array.isArray(data) ? data : Object.values(data);
+                    jobs = rawJobs.filter(job => job && job.id);
                 } else {
                     db.ref("shops/" + shopSyncId + "/reserves").set(jobs);
                 }
@@ -998,13 +1002,8 @@
 
         function deleteItem(id) {
             if (confirm("Are you sure you want to delete this material item?")) {
-                // Force delete by filtering matching IDs or dropping the last item if ID lookup fails
-                const initialLength = items.length;
-                items = items.filter(i => i.id !== id);
-                if (items.length === initialLength && items.length > 0) {
-                    items.pop(); // Fallback to clear the last item if the ID string mismatch occurred
-                }
-                jobs = jobs.filter(j => j.itemId !== id);
+                items = items.filter(i => i.id !== id && i.id != null);
+                jobs = jobs.filter(j => j.itemId !== id && j.itemId != null);
                 pushDataToCloud();
             }
         }
@@ -1068,6 +1067,7 @@
         }
 
         function fulfillJob(jobId) {
+        function fulfillJob(jobId) {
             const job = jobs.find(j => j.id === jobId);
             if (job) {
                 const item = items.find(i => i.id === job.itemId);
@@ -1075,21 +1075,12 @@
                     item.qty = Math.max(0, item.qty - job.reservedQty);
                 }
             }
-            // Force remove the job (or pop the last one if ID string lookup misses)
-            const initialLength = jobs.length;
-            jobs = jobs.filter(j => j.id !== jobId);
-            if (jobs.length === initialLength && jobs.length > 0) {
-                jobs.pop();
-            }
+            jobs = jobs.filter(j => j.id !== jobId && j.id != null);
             pushDataToCloud();
         }
 
         function releaseJob(jobId) {
-            const initialLength = jobs.length;
-            jobs = jobs.filter(j => j.id !== jobId);
-            if (jobs.length === initialLength && jobs.length > 0) {
-                jobs.pop();
-            }
+            jobs = jobs.filter(j => j.id !== jobId && j.id != null);
             pushDataToCloud();
         }
 
