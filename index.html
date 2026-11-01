@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MetalTrack - Real-Time Cloud Inventory</title>
 
-    <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIk1ldGFsVHJhY2sgSW52ZW50b3J5IiwKICAic2hvcnRfbmFtZSI6ICJNZXRhbFRyYWNrIiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwYjBmMTkiLAogICJ0aGVtZV9jb2xvciI6ICIjMGIwZjE5IiwKICAib3JpZW50YXRpb24iOiAicG9ydHJhaXQiLAogICJpY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBIMTJaeUI0SnljT1pXRmtKeUJqY21sdGIyNDlNVEF3SURFd01IeHpPdzA9IiwKICAgICAgInNpemVzIjogIjE5MngxOTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIiwKICAgICAgInB1cnBvc2UiOiAiYW55IG1hc2thYmxlIgogICAgfSxdLAogICJzdGFydF91cmwiOiAiLiJ9">
+    <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIk1ldGFsVHJhY2sgSW52ZW50b3J5IiwKICAic2hvcnRfbmFtZSI6ICJNZXRhbFRyYWNrIiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwYjBmMTkiLAogICJ0aGVtZV9jb2xvciI6ICIjMGIwZjE5IiwKICAib3JpZW50YXRpb24iOiJwb3J0cmFpdCIsCiAgImljb25zIjogWwogICAgewogICAgICAic3JjI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBIMTJaeUI0SnljT1pXRmtKeUJqY21sdGIyNDlNVEF3SURFd01IeHpPdzA9IiwKICAgICAgInNpemVzIjogIjE5MngxOTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIiwKICAgICAgInB1cnBvc2UiOiAiYW55IG1hc2thYmxlIgogICAgfV0sCiAgInN0YXJ0X3VybCI6ICIuIn0=">
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -85,7 +85,7 @@
                     <h1 class="text-base font-bold text-slate-100 leading-tight">MetalTrack</h1>
                     <div id="connection-status" class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[11px] font-medium">
                         <span id="connection-dot" class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
-                        <span id="connection-text">Connecting Cloud...</span>
+                        <span id="connection-text">Loading App...</span>
                     </div>
                 </div>
             </div>
@@ -578,10 +578,16 @@
         ];
 
         window.addEventListener("DOMContentLoaded", () => {
+            // 1. Load local store immediately so UI renders instantly even offline
             loadLocalStore();
             setupEventListeners();
-            initFirebaseRealtimeDB();
             renderCurrentView();
+
+            // 2. Initialize Firebase asynchronously without blocking UI render
+            setTimeout(() => {
+                initFirebaseRealtimeDB();
+            }, 50);
+
             lazyLoadQRLibraries();
         });
 
@@ -610,6 +616,12 @@
                 }
                 db = firebase.database();
 
+                // Enable offline disk persistence safely
+                try {
+                    db.goOffline();
+                    db.goOnline();
+                } catch(e) {}
+
                 const connectedRef = db.ref(".info/connected");
                 connectedRef.on("value", (snap) => {
                     dbConnected = snap.val() === true;
@@ -618,7 +630,7 @@
 
                 attachShopListeners();
             } catch (e) {
-                console.warn("Firebase initialize error, running local fallback:", e);
+                console.warn("Firebase initialize error, running local offline mode:", e);
                 updateOnlineStatus();
             }
         }
@@ -633,11 +645,11 @@
                 if (data) {
                     const rawItems = Array.isArray(data) ? data : Object.values(data);
                     items = rawItems.filter(item => item && item.id);
-                } else {
-                    db.ref("shops/" + shopSyncId + "/inventory").set(items);
+                    saveLocalStore();
+                    renderCurrentView();
                 }
-                saveLocalStore();
-                renderCurrentView();
+            }, (error) => {
+                // Ignore offline sync errors gracefully
             });
 
             shopRef.child("reserves").on("value", (snapshot) => {
@@ -645,11 +657,11 @@
                 if (data) {
                     const rawJobs = Array.isArray(data) ? data : Object.values(data);
                     jobs = rawJobs.filter(job => job && job.id);
-                } else {
-                    db.ref("shops/" + shopSyncId + "/reserves").set(jobs);
+                    saveLocalStore();
+                    renderCurrentView();
                 }
-                saveLocalStore();
-                renderCurrentView();
+            }, (error) => {
+                // Ignore offline sync errors gracefully
             });
         }
 
@@ -658,8 +670,10 @@
             renderCurrentView();
 
             if (db && dbConnected) {
-                db.ref("shops/" + shopSyncId + "/inventory").set(items);
-                db.ref("shops/" + shopSyncId + "/reserves").set(jobs);
+                try {
+                    db.ref("shops/" + shopSyncId + "/inventory").set(items);
+                    db.ref("shops/" + shopSyncId + "/reserves").set(jobs);
+                } catch(e) {}
             }
         }
 
@@ -673,7 +687,7 @@
                 statusDot.className = "w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse";
                 statusBadge.className = "flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-medium";
             } else {
-                statusText.textContent = "Local / Offline Ready";
+                statusText.textContent = "Offline Mode Ready";
                 statusDot.className = "w-1.5 h-1.5 rounded-full bg-amber-400";
                 statusBadge.className = "flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[11px] font-medium";
             }
@@ -924,7 +938,6 @@
                     : `Price: $${price.toFixed(2)} / lb (${sheetWeightLbs.toFixed(1)} lbs/sheet)`;
             }
 
-            // Default Sheet pricing: Show price/sheet ➔ price/m² and price/lb
             if (parsedSqM > 0) {
                 const pricePerM2 = price / parsedSqM;
                 const pricePerLb = sheetWeightLbs > 0 ? price / sheetWeightLbs : 0;
@@ -981,9 +994,8 @@
         }
 
         function parseThicknessInches(thicknessStr) {
-            if (!thicknessStr) return 0.075; // Default 14 Ga approx
+            if (!thicknessStr) return 0.075;
 
-            // Standard Gauge Conversions
             const gaugeMap = {
                 "10": 0.1345,
                 "11": 0.1196,
@@ -1019,8 +1031,6 @@
             const areaSqFt = parseAreaToSquareFeet(dimStr);
 
             if (thickInches <= 0 || areaSqFt <= 0) return 0;
-
-            // Steel Weight = Area (ft²) * Thickness (in) * 40.8 (lbs/ft²/in)
             return areaSqFt * thickInches * 40.8;
         }
 
