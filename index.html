@@ -25,7 +25,7 @@
   </header>
 
   <!-- Main Content Area -->
-  <main class="flex-1 max-w-5xl w-full mx-auto p-4 space-y-6">
+  <main class="flex-1 max-w-6xl w-full mx-auto p-4 space-y-6">
     
     <!-- Inventory Controls -->
     <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -46,13 +46,14 @@
             <tr class="bg-slate-700/50 text-slate-400 text-xs uppercase tracking-wider border-b border-slate-700">
               <th class="p-3">Material Type</th>
               <th class="p-3">Dimensions / Size</th>
-              <th class="p-3">Quantity / Weight</th>
+              <th class="p-3">Quantity</th>
+              <th class="p-3">Price / Cost</th>
               <th class="p-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody id="inventory-table-body" class="divide-y divide-slate-700 text-sm">
             <tr>
-              <td colspan="4" class="p-6 text-center text-slate-400">Loading shop inventory...</td>
+              <td colspan="5" class="p-6 text-center text-slate-400">Loading shop inventory...</td>
             </tr>
           </tbody>
         </table>
@@ -71,15 +72,21 @@
       <div class="space-y-3">
         <div>
           <label class="text-xs text-slate-300 font-medium">Material Name / Type:</label>
-          <input type="text" id="mat-name" placeholder="e.g. Sheet Steel 10ga or Round Pipe 2&quot;" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-emerald-500">
+          <input type="text" id="mat-name" placeholder="e.g. CS .25 5X10" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-emerald-500">
         </div>
         <div>
           <label class="text-xs text-slate-300 font-medium">Dimensions / Size:</label>
-          <input type="text" id="mat-dimensions" placeholder="e.g. 4x8 ft or 20 ft length" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-emerald-500">
+          <input type="text" id="mat-dimensions" placeholder="e.g. 5x10 ft" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-emerald-500">
         </div>
-        <div>
-          <label class="text-xs text-slate-300 font-medium">Quantity / Weight:</label>
-          <input type="text" id="mat-quantity" placeholder="e.g. 10 sheets or 150 lbs" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-emerald-500">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-slate-300 font-medium">Quantity:</label>
+            <input type="text" id="mat-quantity" placeholder="e.g. 2" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="text-xs text-slate-300 font-medium">Price ($):</label>
+            <input type="text" id="mat-price" placeholder="e.g. 250.00" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-emerald-500">
+          </div>
         </div>
       </div>
 
@@ -169,7 +176,7 @@
       tbody.innerHTML = '';
 
       if (!data) {
-        tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400">No inventory records found for channel ${currentShopId}. Tap '+ Add Material' above.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-400">No inventory records found for channel ${currentShopId}. Tap '+ Add Material' above.</td></tr>`;
         return;
       }
 
@@ -180,6 +187,7 @@
           <td class="p-3 font-medium">${item.name || 'Unnamed Material'}</td>
           <td class="p-3 text-slate-300">${item.dimensions || 'N/A'}</td>
           <td class="p-3 text-slate-300">${item.quantity || 0}</td>
+          <td class="p-3 text-emerald-400 font-mono">$${item.price || '0.00'}</td>
           <td class="p-3 text-right">
             <button data-id="${id}" class="delete-btn text-red-400 hover:text-red-300 text-xs px-2 py-1 bg-red-950/40 rounded border border-red-900/50">Delete</button>
           </td>
@@ -193,6 +201,7 @@
       const name = document.getElementById('mat-name').value.trim();
       const dimensions = document.getElementById('mat-dimensions').value.trim();
       const quantity = document.getElementById('mat-quantity').value.trim();
+      const price = document.getElementById('mat-price').value.trim();
 
       if (!name) {
         alert('Please enter a material name.');
@@ -203,13 +212,17 @@
       set(newRef, {
         name: name,
         dimensions: dimensions || 'Standard',
-        quantity: quantity || '1'
+        quantity: quantity || '1',
+        price: price || '0.00'
       }).then(() => {
         // Clear inputs and close modal
         document.getElementById('mat-name').value = '';
         document.getElementById('mat-dimensions').value = '';
         document.getElementById('mat-quantity').value = '';
+        document.getElementById('mat-price').value = '';
         addModal.classList.add('hidden');
+      }).catch((err) => {
+        alert('Error saving to Firebase: ' + err.message);
       });
     });
 
