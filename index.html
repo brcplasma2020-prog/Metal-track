@@ -3,57 +3,91 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MetalTrack - Industrial Inventory</title>
+  <title>MetalTrack - Industrial Inventory & Stock Management</title>
   
   <!-- PWA Manifest & Theme -->
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#1e293b">
+  <meta name="theme-color" content="#0f172a">
   
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
 
-  <!-- Header -->
-  <header class="bg-slate-800 border-b border-slate-700 p-4 shadow-md flex justify-between items-center">
-    <div class="flex items-center space-x-3">
-      <div class="bg-blue-600 p-2 rounded-lg font-bold text-lg">⚙️ MetalTrack</div>
+  <!-- Header / Navigation Bar -->
+  <header class="bg-slate-900 border-b border-slate-800 p-4 shadow-lg sticky top-0 z-40 flex flex-col sm:flex-row justify-between items-center gap-4">
+    <div class="flex items-center space-x-3 w-full sm:w-auto justify-between sm:justify-start">
+      <div class="flex items-center gap-2">
+        <div class="bg-blue-600 text-white p-2 rounded-xl font-bold text-lg shadow-inner">⚙️</div>
+        <div>
+          <h1 class="font-bold text-base tracking-wide">MetalTrack</h1>
+          <div class="flex items-center gap-1.5 text-xs text-slate-400">
+            <span id="network-dot" class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+            <span id="network-status">Ready / Synced</span>
+          </div>
+        </div>
+      </div>
     </div>
-    <button id="open-sync-modal" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg text-sm font-medium transition shadow">
-      Shop Sync: <span id="current-sync-id" class="font-mono underline">MS-336E</span>
-    </button>
+
+    <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+      <!-- Total Valuation Badge -->
+      <div class="hidden md:flex flex-col text-right px-3 py-1 bg-slate-800/80 rounded-lg border border-slate-700/50">
+        <span class="text-[10px] uppercase text-slate-400 font-semibold tracking-wider">Total Value</span>
+        <span id="total-inventory-value" class="text-emerald-400 font-mono font-bold text-sm">$0.00</span>
+      </div>
+
+      <!-- Shop Sync Button -->
+      <button id="open-sync-modal" class="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition shadow-md flex items-center justify-center gap-2">
+        <span>Shop Sync:</span> <span id="current-sync-id" class="font-mono underline font-bold">MS-336E</span>
+      </button>
+    </div>
   </header>
 
   <!-- Main Content Area -->
-  <main class="flex-1 max-w-6xl w-full mx-auto p-4 space-y-6">
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
     
-    <!-- Inventory Controls -->
-    <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
-      <div>
-        <h1 class="text-xl font-bold">Inventory & Stock Logs</h1>
-        <p class="text-xs text-slate-400">Manage sheet metal, plates, and round pipes.</p>
+    <!-- Action Control Deck -->
+    <div class="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-xl flex flex-col md:flex-row justify-between items-center gap-4">
+      <div class="w-full md:w-auto text-center md:text-left">
+        <h2 class="text-lg font-bold">Inventory & Material Logs</h2>
+        <p class="text-xs text-slate-400">Real-time multi-channel tracking for sheet metal, plates, and tubes.</p>
       </div>
-      <button id="open-add-modal" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-lg text-sm font-semibold transition shadow">
-        + Add Material
-      </button>
+
+      <div class="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
+        <!-- Category Filter Tabs -->
+        <select id="category-filter" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 font-medium focus:outline-none focus:border-blue-500">
+          <option value="ALL">All Categories</option>
+          <option value="Sheet Metal">Sheet Metal</option>
+          <option value="Plate">Plate Steel</option>
+          <option value="Round Pipe">Round Pipe</option>
+          <option value="Square Tube">Square Tubing</option>
+          <option value="Structural">Structural / Beams</option>
+        </select>
+
+        <button id="open-add-modal" class="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-500 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition shadow-lg flex items-center justify-center gap-2">
+          <span>➕</span> Add Material
+        </button>
+      </div>
     </div>
 
     <!-- Inventory Display Table -->
-    <div class="bg-slate-800 rounded-xl border border-slate-700 shadow-sm overflow-hidden">
+    <div class="bg-slate-900 rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead>
-            <tr class="bg-slate-700/50 text-slate-400 text-xs uppercase tracking-wider border-b border-slate-700">
-              <th class="p-3">Material Type</th>
-              <th class="p-3">Dimensions / Size</th>
-              <th class="p-3">Quantity</th>
-              <th class="p-3">Price / Cost</th>
-              <th class="p-3 text-right">Actions</th>
+            <tr class="bg-slate-800/60 text-slate-400 text-[11px] uppercase tracking-wider border-b border-slate-800">
+              <th class="p-4">Category</th>
+              <th class="p-4">Material Description</th>
+              <th class="p-4">Dimensions / Size</th>
+              <th class="p-4">Qty</th>
+              <th class="p-4">Unit Price</th>
+              <th class="p-4">Total Cost</th>
+              <th class="p-4 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody id="inventory-table-body" class="divide-y divide-slate-700 text-sm">
+          <tbody id="inventory-table-body" class="divide-y divide-slate-800/60 text-sm">
             <tr>
-              <td colspan="5" class="p-6 text-center text-slate-400">Loading shop inventory...</td>
+              <td colspan="7" class="p-8 text-center text-slate-500">Connecting to Firebase & loading inventory channel...</td>
             </tr>
           </tbody>
         </table>
@@ -62,70 +96,84 @@
   </main>
 
   <!-- Add Material Modal -->
-  <div id="add-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
-    <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl relative space-y-4">
-      <div class="flex justify-between items-center">
-        <h2 class="text-lg font-bold flex items-center gap-2">➕ Add New Material</h2>
+  <div id="add-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative space-y-5">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="text-base font-bold flex items-center gap-2">➕ Add New Stock Item</h3>
         <button id="close-add-modal" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
       </div>
       
-      <div class="space-y-3">
-        <div>
-          <label class="text-xs text-slate-300 font-medium">Material Name / Type:</label>
-          <input type="text" id="mat-name" placeholder="e.g. CS .25 5X10" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-emerald-500">
-        </div>
-        <div>
-          <label class="text-xs text-slate-300 font-medium">Dimensions / Size:</label>
-          <input type="text" id="mat-dimensions" placeholder="e.g. 5x10 ft" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-emerald-500">
-        </div>
-        <div class="grid grid-cols-2 gap-3">
+      <div class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="text-xs text-slate-300 font-medium">Quantity:</label>
-            <input type="text" id="mat-quantity" placeholder="e.g. 2" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-emerald-500">
+            <label class="text-xs text-slate-300 font-semibold mb-1 block">Category:</label>
+            <select id="mat-category" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
+              <option value="Sheet Metal">Sheet Metal</option>
+              <option value="Plate">Plate Steel</option>
+              <option value="Round Pipe">Round Pipe</option>
+              <option value="Square Tube">Square Tubing</option>
+              <option value="Structural">Structural / Beams</option>
+            </select>
           </div>
           <div>
-            <label class="text-xs text-slate-300 font-medium">Price ($):</label>
-            <input type="text" id="mat-price" placeholder="e.g. 250.00" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-emerald-500">
+            <label class="text-xs text-slate-300 font-semibold mb-1 block">Material Name / Grade:</label>
+            <input type="text" id="mat-name" placeholder="e.g. A36 Steel or DOM Tubing" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="text-xs text-slate-300 font-semibold mb-1 block">Dimensions / Gauge / Size:</label>
+          <input type="text" id="mat-dimensions" placeholder="e.g. 1/4&quot; x 5ft x 10ft" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-xs text-slate-300 font-semibold mb-1 block">Quantity / Stock:</label>
+            <input type="number" id="mat-quantity" placeholder="1" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="text-xs text-slate-300 font-semibold mb-1 block">Price per Unit ($):</label>
+            <input type="number" step="0.01" id="mat-price" placeholder="0.00" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
           </div>
         </div>
       </div>
 
-      <button id="save-material-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 py-3 rounded-lg font-semibold transition shadow-lg">
-        Save to Inventory
+      <button id="save-material-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 py-3.5 rounded-xl font-bold text-sm transition shadow-lg">
+        Save Item to Inventory
       </button>
     </div>
   </div>
 
   <!-- Shop Channel Sync Modal -->
-  <div id="sync-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
-    <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl relative space-y-4">
-      <div class="flex justify-between items-center">
-        <h2 class="text-lg font-bold flex items-center gap-2">📷 Shop Channel Sync</h2>
+  <div id="sync-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl relative space-y-5">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="text-base font-bold flex items-center gap-2">📷 Shop Channel Sync</h3>
         <button id="close-sync-modal" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
       </div>
       
-      <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50 text-center">
-        <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Current Shop Sync ID</div>
+      <div class="bg-slate-950/70 p-4 rounded-xl border border-slate-800 text-center space-y-1">
+        <div class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">Active Shop ID Channel</div>
         <div id="modal-current-id" class="text-2xl font-mono font-bold text-blue-400">MS-336E</div>
       </div>
 
       <div class="space-y-2">
-        <label class="text-xs text-slate-300 font-medium">Type Target Shop ID Code:</label>
-        <input type="text" id="target-shop-input" placeholder="e.g. MS-345R" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white font-mono uppercase focus:outline-none focus:border-blue-500">
+        <label class="text-xs text-slate-300 font-semibold block">Connect to Target Shop ID Code:</label>
+        <input type="text" id="target-shop-input" placeholder="e.g. BRC-WELDING" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white font-mono uppercase text-sm focus:outline-none focus:border-blue-500">
       </div>
 
-      <button id="connect-channel-btn" class="w-full bg-blue-600 hover:bg-blue-500 py-3 rounded-lg font-semibold transition shadow-lg">
-        Connect Channel
+      <button id="connect-channel-btn" class="w-full bg-blue-600 hover:bg-blue-500 py-3.5 rounded-xl font-bold text-sm transition shadow-lg">
+        Switch & Sync Channel
       </button>
     </div>
   </div>
 
-  <!-- Firebase & App Scripts -->
+  <!-- Firebase & App Script Logic -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getDatabase, ref, onValue, push, set, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    // Your Firebase configuration
+    // Your Firebase Configuration
     const firebaseConfig = {
       apiKey: "AIzaSyDHDDCPeOyHkDGpHZAU9AAdKm14M5LCT-0",
       authDomain: "inventory-management-336e1.firebaseapp.com",
@@ -137,26 +185,24 @@
       measurementId: "G-FTV8SW22YN"
     };
 
-    // Initialize Firebase
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // Load Shop ID persistence
+    // Persistent Shop ID State
     let currentShopId = localStorage.getItem('metaltrack_shop_id') || 'MS-336E';
     document.getElementById('current-sync-id').innerText = currentShopId;
     document.getElementById('modal-current-id').innerText = currentShopId;
 
-    // Modal Control Elements (Sync)
+    // Modal Triggers
     const syncModal = document.getElementById('sync-modal');
     document.getElementById('open-sync-modal').addEventListener('click', () => syncModal.classList.remove('hidden') || syncModal.classList.add('flex'));
     document.getElementById('close-sync-modal').addEventListener('click', () => syncModal.classList.add('hidden'));
 
-    // Modal Control Elements (Add Material)
     const addModal = document.getElementById('add-modal');
     document.getElementById('open-add-modal').addEventListener('click', () => addModal.classList.remove('hidden') || addModal.classList.add('flex'));
     document.getElementById('close-add-modal').addEventListener('click', () => addModal.classList.add('hidden'));
 
-    // Handle Connect Channel Button
+    // Channel Switch Handler
     document.getElementById('connect-channel-btn').addEventListener('click', () => {
       const inputVal = document.getElementById('target-shop-input').value.trim().toUpperCase();
       if (inputVal) {
@@ -167,70 +213,107 @@
       }
     });
 
-    // Bind Realtime Database Listener to Active Shop Channel Path
+    // Realtime Database Binding & Table Rendering
     const inventoryRef = ref(db, `shops/${currentShopId}/inventory`);
-    
+    let cachedInventoryData = {};
+
     onValue(inventoryRef, (snapshot) => {
       const data = snapshot.val();
+      cachedInventoryData = data || {};
+      renderTable(cachedInventoryData);
+    }, (error) => {
+      document.getElementById('network-status').innerText = "Sync Error / Offline";
+      document.getElementById('network-dot').className = "w-2 h-2 rounded-full bg-red-500 inline-block";
+    });
+
+    function renderTable(data) {
       const tbody = document.getElementById('inventory-table-body');
+      const selectedCategory = document.getElementById('category-filter').value;
       tbody.innerHTML = '';
 
-      if (!data) {
-        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-400">No inventory records found for channel ${currentShopId}. Tap '+ Add Material' above.</td></tr>`;
+      if (!data || Object.keys(data).length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-500">No stock logged under channel <span class="font-mono text-blue-400">${currentShopId}</span>. Tap '+ Add Material' to begin.</td></tr>`;
+        document.getElementById('total-inventory-value').innerText = "$0.00";
         return;
       }
 
+      let grandTotal = 0;
+      let count = 0;
+
       Object.entries(data).forEach(([id, item]) => {
+        const category = item.category || 'Sheet Metal';
+        if (selectedCategory !== 'ALL' && category !== selectedCategory) return;
+
+        count++;
+        const qty = parseFloat(item.quantity) || 0;
+        const price = parseFloat(item.price) || 0;
+        const itemTotal = qty * price;
+        grandTotal += itemTotal;
+
         const row = document.createElement('tr');
-        row.className = "hover:bg-slate-700/30 transition";
+        row.className = "hover:bg-slate-800/40 transition";
         row.innerHTML = `
-          <td class="p-3 font-medium">${item.name || 'Unnamed Material'}</td>
-          <td class="p-3 text-slate-300">${item.dimensions || 'N/A'}</td>
-          <td class="p-3 text-slate-300">${item.quantity || 0}</td>
-          <td class="p-3 text-emerald-400 font-mono">$${item.price || '0.00'}</td>
-          <td class="p-3 text-right">
-            <button data-id="${id}" class="delete-btn text-red-400 hover:text-red-300 text-xs px-2 py-1 bg-red-950/40 rounded border border-red-900/50">Delete</button>
+          <td class="p-4"><span class="px-2.5 py-1 bg-slate-800 rounded-lg text-xs text-slate-300 font-medium border border-slate-700/50">${category}</span></td>
+          <td class="p-4 font-semibold text-white">${item.name || 'Unnamed Stock'}</td>
+          <td class="p-4 text-slate-300 font-mono text-xs">${item.dimensions || 'N/A'}</td>
+          <td class="p-4 text-slate-200 font-mono">${qty}</td>
+          <td class="p-4 text-slate-300 font-mono">$${price.toFixed(2)}</td>
+          <td class="p-4 text-emerald-400 font-mono font-bold">$${itemTotal.toFixed(2)}</td>
+          <td class="p-4 text-right">
+            <button data-id="${id}" class="delete-btn text-red-400 hover:text-red-300 text-xs px-2.5 py-1 bg-red-950/50 hover:bg-red-900/60 rounded-lg border border-red-900/50 transition">Delete</button>
           </td>
         `;
         tbody.appendChild(row);
       });
+
+      if (count === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-500">No items match the selected category filter.</td></tr>`;
+      }
+
+      document.getElementById('total-inventory-value').innerText = `$${grandTotal.toFixed(2)}`;
+    }
+
+    // Category Filter Event
+    document.getElementById('category-filter').addEventListener('change', () => {
+      renderTable(cachedInventoryData);
     });
 
-    // Save Material Form Handler
+    // Save Material Action
     document.getElementById('save-material-btn').addEventListener('click', () => {
+      const category = document.getElementById('mat-category').value;
       const name = document.getElementById('mat-name').value.trim();
       const dimensions = document.getElementById('mat-dimensions').value.trim();
       const quantity = document.getElementById('mat-quantity').value.trim();
       const price = document.getElementById('mat-price').value.trim();
 
       if (!name) {
-        alert('Please enter a material name.');
+        alert('Please enter a material name or grade.');
         return;
       }
 
       const newRef = push(inventoryRef);
       set(newRef, {
-        name: name,
+        category,
+        name,
         dimensions: dimensions || 'Standard',
         quantity: quantity || '1',
         price: price || '0.00'
       }).then(() => {
-        // Clear inputs and close modal
         document.getElementById('mat-name').value = '';
         document.getElementById('mat-dimensions').value = '';
         document.getElementById('mat-quantity').value = '';
         document.getElementById('mat-price').value = '';
         addModal.classList.add('hidden');
       }).catch((err) => {
-        alert('Error saving to Firebase: ' + err.message);
+        alert('Firebase save failed: ' + err.message);
       });
     });
 
-    // Event delegation for deleting items
+    // Delete Item Action
     document.addEventListener('click', (e) => {
       if (e.target.classList.contains('delete-btn')) {
         const id = e.target.getAttribute('data-id');
-        if (confirm("Are you sure you want to delete this inventory item?")) {
+        if (confirm("Permanently delete this item from the active shop channel?")) {
           remove(ref(db, `shops/${currentShopId}/inventory/${id}`));
         }
       }
