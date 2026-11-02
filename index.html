@@ -50,7 +50,7 @@
     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4">
       <div class="w-full sm:w-auto">
         <h2 class="text-lg font-bold">Material Inventory</h2>
-        <p class="text-xs text-slate-400">Vertical mobile logs with automatic $/m² calculations.</p>
+        <p class="text-xs text-slate-400">Vertical layout with automatic $/m² or $/ft calculations.</p>
       </div>
 
       <div class="flex items-center gap-2 w-full sm:w-auto">
@@ -100,23 +100,23 @@
           </div>
           <div>
             <label class="text-xs text-slate-300 font-semibold mb-1 block">Material Name / Grade:</label>
-            <input type="text" id="mat-name" placeholder="e.g. CS .25 5X10" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
+            <input type="text" id="mat-name" placeholder="e.g. 2&quot; OD DOM Pipe" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
           </div>
         </div>
 
         <div>
-          <label class="text-xs text-slate-300 font-semibold mb-1 block">Dimensions (Width x Length):</label>
-          <input type="text" id="mat-dimensions" placeholder="e.g. 5x10 ft or 1.5x3 m" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
+          <label class="text-xs text-slate-300 font-semibold mb-1 block">Dimensions / Length:</label>
+          <input type="text" id="mat-dimensions" placeholder="e.g. 20 ft length or 5x10 ft" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
         </div>
 
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="text-xs text-slate-300 font-semibold mb-1 block">Price per Unit ($):</label>
-            <input type="number" step="0.01" id="mat-price" placeholder="250.00" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
+            <input type="number" step="0.01" id="mat-price" placeholder="120.00" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
           </div>
           <div>
             <label class="text-xs text-slate-300 font-semibold mb-1 block">Quantity / Stock:</label>
-            <input type="number" id="mat-quantity" placeholder="2" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
+            <input type="number" id="mat-quantity" placeholder="4" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
           </div>
         </div>
 
@@ -201,7 +201,7 @@
       }
     });
 
-    // Helper: Automatically calculates surface area in m² from dimension text (e.g., "5x10 ft" or "1.5x3 m")
+    // Helper: Calculate area in m² for flat metal sheets/plates
     function calculateAreaInSqMeters(dimStr) {
       if (!dimStr) return 0;
       const lower = dimStr.toLowerCase();
@@ -212,11 +212,25 @@
       const val2 = parseFloat(matches[1]);
 
       if (lower.includes('m') && !lower.includes('ft')) {
-        return val1 * val2; // Already in square meters
+        return val1 * val2;
       } else {
         const sqFt = val1 * val2;
-        return sqFt * 0.092903; // Convert sq ft to sq meters
+        return sqFt * 0.092903;
       }
+    }
+
+    // Helper: Extract length in feet for linear items (pipes, tubes, beams)
+    function extractLengthInFeet(dimStr) {
+      if (!dimStr) return 0;
+      const lower = dimStr.toLowerCase();
+      const matches = lower.match(/\d+(\.\d+)?/g);
+      if (!matches || matches.length === 0) return 0;
+
+      let lengthVal = parseFloat(matches[matches.length - 1]); // usually last number is length (e.g. 20ft length)
+      if (lower.includes('in') || lower.includes('"')) {
+        lengthVal = lengthVal / 12; // convert inches to feet if specified
+      }
+      return lengthVal > 0 ? lengthVal : 1;
     }
 
     // Realtime Database Binding & Card Rendering
@@ -256,9 +270,19 @@
         const lineTotal = pricePerUnit * qty;
         grandTotal += lineTotal;
 
-        // Auto-calculate $/m²
-        const sqMetersPerUnit = calculateAreaInSqMeters(item.dimensions);
-        const pricePerSqM = sqMetersPerUnit > 0 ? (pricePerUnit / sqMetersPerUnit).toFixed(2) : 'N/A';
+        // Determine rate label based on category
+        const isLinear = category === 'Round Pipe' || category === 'Square Tube' || category === 'Structural / Beams';
+        let rateDisplay = '';
+
+        if (isLinear) {
+          const totalFeet = extractLengthInFeet(item.dimensions);
+          const pricePerFt = totalFeet > 0 ? (pricePerUnit / totalFeet).toFixed(2) : 'N/A';
+          rateDisplay = pricePerFt !== 'N/A' ? `$${pricePerFt}/ft` : 'N/A';
+        } else {
+          const sqMeters = calculateAreaInSqMeters(item.dimensions);
+          const pricePerSqM = sqMeters > 0 ? (pricePerUnit / sqMeters).toFixed(2) : 'N/A';
+          rateDisplay = pricePerSqM !== 'N/A' ? `$${pricePerSqM}/m²` : 'N/A';
+        }
 
         const reservedJob = item.reserved && item.reserved.trim() !== '' ? item.reserved : 'General Stock';
         const isReserved = reservedJob !== 'General Stock';
@@ -296,8 +320,8 @@
             </div>
 
             <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
-              <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">Calculated $/m²</span>
-              <span class="font-mono text-blue-400 font-semibold">${pricePerSqM !== 'N/A' ? '$' + pricePerSqM + '/m²' : 'N/A'}</span>
+              <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">${isLinear ? 'Calculated Rate' : 'Calculated Rate'}</span>
+              <span class="font-mono text-blue-400 font-semibold">${rateDisplay}</span>
             </div>
           </div>
 
