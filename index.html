@@ -50,7 +50,7 @@
     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4">
       <div class="w-full sm:w-auto">
         <h2 class="text-lg font-bold">Material Inventory</h2>
-        <p class="text-xs text-slate-400">Vertical layout with automatic $/m² or $/ft calculations.</p>
+        <p class="text-xs text-slate-400">Vertical mobile layout with automatic $/m² or $/ft calculations.</p>
       </div>
 
       <div class="flex items-center gap-2 w-full sm:w-auto">
@@ -159,7 +159,7 @@
   <!-- Firebase & App Script Logic -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getDatabase, ref, onValue, push, set, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    import { getDatabase, ref, onValue, push, set, remove, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
     // Firebase Configuration
     const firebaseConfig = {
@@ -175,6 +175,19 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
+
+    // Enable offline persistence for IndexedDB
+    try {
+      enableIndexedDbPersistence(db).catch((err) => {
+        if (err.code === 'failed-precondition') {
+          console.log('Persistence failed: Multiple tabs open.');
+        } else if (err.code === 'unimplemented') {
+          console.log('Persistence is not supported by this browser.');
+        }
+      });
+    } catch (e) {
+      console.log('Persistence error:', e);
+    }
 
     // Persistent Shop ID State
     let currentShopId = localStorage.getItem('metaltrack_shop_id') || 'MS-336E';
@@ -241,9 +254,11 @@
       const data = snapshot.val();
       cachedInventoryData = data || {};
       renderCards(cachedInventoryData);
+      document.getElementById('network-status').innerText = "Ready / Synced";
+      document.getElementById('network-dot').className = "w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse";
     }, (error) => {
-      document.getElementById('network-status').innerText = "Sync Error / Offline";
-      document.getElementById('network-dot').className = "w-2 h-2 rounded-full bg-red-500 inline-block";
+      document.getElementById('network-status').innerText = "Offline Mode (Cached Data)";
+      document.getElementById('network-dot').className = "w-2 h-2 rounded-full bg-amber-500 inline-block";
     });
 
     function renderCards(data) {
@@ -270,8 +285,8 @@
         const lineTotal = pricePerUnit * qty;
         grandTotal += lineTotal;
 
-        // Determine rate display based on category
-        const isLinear = category === 'Round Pipe' || category === 'Square Tube' || category === 'Structural / Beams';
+        // Determine rate display based on category type
+        const isLinear = category === 'Round Pipe' || category === 'Square Tube' || category === 'Structural' || category === 'Structural / Beams';
         let rateDisplay = '';
 
         if (isLinear) {
@@ -403,8 +418,8 @@
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
-          .then(reg => console.log('MetalTrack SW: Registered with scope:', reg.scope))
-          .catch(err => console.log('MetalTrack SW: Registration failed:', err));
+          .then(reg => console.log('MetalTrack SW registered:', reg.scope))
+          .catch(err => console.log('MetalTrack SW failed:', err));
       });
     }
   </script>
