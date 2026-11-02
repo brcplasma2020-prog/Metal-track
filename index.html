@@ -159,7 +159,7 @@
   <!-- Firebase & App Script Logic -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getDatabase, ref, onValue, push, set, remove, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    import { getDatabase, ref, onValue, push, set, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
     // Firebase Configuration
     const firebaseConfig = {
@@ -175,19 +175,6 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
-
-    // Enable offline persistence for IndexedDB
-    try {
-      enableIndexedDbPersistence(db).catch((err) => {
-        if (err.code === 'failed-precondition') {
-          console.log('Persistence failed: Multiple tabs open.');
-        } else if (err.code === 'unimplemented') {
-          console.log('Persistence is not supported by this browser.');
-        }
-      });
-    } catch (e) {
-      console.log('Persistence error:', e);
-    }
 
     // Persistent Shop ID State
     let currentShopId = localStorage.getItem('metaltrack_shop_id') || 'MS-336E';
@@ -257,7 +244,7 @@
       document.getElementById('network-status').innerText = "Ready / Synced";
       document.getElementById('network-dot').className = "w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse";
     }, (error) => {
-      document.getElementById('network-status').innerText = "Offline Mode (Cached Data)";
+      document.getElementById('network-status').innerText = "Offline Mode";
       document.getElementById('network-dot').className = "w-2 h-2 rounded-full bg-amber-500 inline-block";
     });
 
@@ -285,7 +272,6 @@
         const lineTotal = pricePerUnit * qty;
         grandTotal += lineTotal;
 
-        // Determine rate display based on category type
         const isLinear = category === 'Round Pipe' || category === 'Square Tube' || category === 'Structural' || category === 'Structural / Beams';
         let rateDisplay = '';
 
@@ -302,11 +288,9 @@
         const reservedJob = item.reserved && item.reserved.trim() !== '' ? item.reserved : 'General Stock';
         const isReserved = reservedJob !== 'General Stock';
 
-        // Render Vertical Card Component
         const card = document.createElement('div');
         card.className = "bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4 hover:border-slate-700 transition";
         card.innerHTML = `
-          <!-- Top Row: Name, Category, Actions -->
           <div class="flex justify-between items-start gap-2 border-b border-slate-800 pb-3">
             <div>
               <span class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs font-medium border border-slate-700/50 inline-block mb-1.5">${category}</span>
@@ -317,7 +301,6 @@
             </button>
           </div>
 
-          <!-- Middle Block: Vertical Properties -->
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
             <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
               <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">Dimensions</span>
@@ -340,7 +323,6 @@
             </div>
           </div>
 
-          <!-- Bottom Row: Reserved Tag & Line Total -->
           <div class="flex justify-between items-center pt-1 border-t border-slate-800/60 text-xs">
             <div class="flex items-center gap-1.5">
               <span class="text-slate-400 font-medium">Reserved:</span>
@@ -365,12 +347,10 @@
       document.getElementById('total-inventory-value').innerText = `$${grandTotal.toFixed(2)}`;
     }
 
-    // Category Filter Event
     document.getElementById('category-filter').addEventListener('change', () => {
       renderCards(cachedInventoryData);
     });
 
-    // Save Material Handler
     document.getElementById('save-material-btn').addEventListener('click', () => {
       const category = document.getElementById('mat-category').value;
       const name = document.getElementById('mat-name').value.trim();
@@ -404,7 +384,6 @@
       });
     });
 
-    // Delete Item Action
     document.addEventListener('click', (e) => {
       if (e.target.classList.contains('delete-btn')) {
         const id = e.target.getAttribute('data-id');
@@ -414,7 +393,6 @@
       }
     });
 
-    // Service Worker Registration for PWA Offline Functionality
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
