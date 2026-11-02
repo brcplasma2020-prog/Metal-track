@@ -33,7 +33,7 @@
         <h1 class="text-xl font-bold">Inventory & Stock Logs</h1>
         <p class="text-xs text-slate-400">Manage sheet metal, plates, and round pipes.</p>
       </div>
-      <button id="add-item-btn" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-lg text-sm font-semibold transition">
+      <button id="open-add-modal" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-lg text-sm font-semibold transition shadow">
         + Add Material
       </button>
     </div>
@@ -59,6 +59,35 @@
       </div>
     </div>
   </main>
+
+  <!-- Add Material Modal -->
+  <div id="add-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl relative space-y-4">
+      <div class="flex justify-between items-center">
+        <h2 class="text-lg font-bold flex items-center gap-2">➕ Add New Material</h2>
+        <button id="close-add-modal" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+      </div>
+      
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-slate-300 font-medium">Material Name / Type:</label>
+          <input type="text" id="mat-name" placeholder="e.g. Sheet Steel 10ga or Round Pipe 2&quot;" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-emerald-500">
+        </div>
+        <div>
+          <label class="text-xs text-slate-300 font-medium">Dimensions / Size:</label>
+          <input type="text" id="mat-dimensions" placeholder="e.g. 4x8 ft or 20 ft length" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-emerald-500">
+        </div>
+        <div>
+          <label class="text-xs text-slate-300 font-medium">Quantity / Weight:</label>
+          <input type="text" id="mat-quantity" placeholder="e.g. 10 sheets or 150 lbs" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-emerald-500">
+        </div>
+      </div>
+
+      <button id="save-material-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 py-3 rounded-lg font-semibold transition shadow-lg">
+        Save to Inventory
+      </button>
+    </div>
+  </div>
 
   <!-- Shop Channel Sync Modal -->
   <div id="sync-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
@@ -89,7 +118,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getDatabase, ref, onValue, push, set, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    // Your exact Firebase configuration
+    // Your Firebase configuration
     const firebaseConfig = {
       apiKey: "AIzaSyDHDDCPeOyHkDGpHZAU9AAdKm14M5LCT-0",
       authDomain: "inventory-management-336e1.firebaseapp.com",
@@ -110,10 +139,15 @@
     document.getElementById('current-sync-id').innerText = currentShopId;
     document.getElementById('modal-current-id').innerText = currentShopId;
 
-    // Modal Control Elements
-    const modal = document.getElementById('sync-modal');
-    document.getElementById('open-sync-modal').addEventListener('click', () => modal.classList.remove('hidden', 'flex') || modal.classList.add('flex'));
-    document.getElementById('close-sync-modal').addEventListener('click', () => modal.classList.add('hidden'));
+    // Modal Control Elements (Sync)
+    const syncModal = document.getElementById('sync-modal');
+    document.getElementById('open-sync-modal').addEventListener('click', () => syncModal.classList.remove('hidden') || syncModal.classList.add('flex'));
+    document.getElementById('close-sync-modal').addEventListener('click', () => syncModal.classList.add('hidden'));
+
+    // Modal Control Elements (Add Material)
+    const addModal = document.getElementById('add-modal');
+    document.getElementById('open-add-modal').addEventListener('click', () => addModal.classList.remove('hidden') || addModal.classList.add('flex'));
+    document.getElementById('close-add-modal').addEventListener('click', () => addModal.classList.add('hidden'));
 
     // Handle Connect Channel Button
     document.getElementById('connect-channel-btn').addEventListener('click', () => {
@@ -135,7 +169,7 @@
       tbody.innerHTML = '';
 
       if (!data) {
-        tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400">No inventory records found for channel ${currentShopId}. Tap '+ Add Material' to add stock.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400">No inventory records found for channel ${currentShopId}. Tap '+ Add Material' above.</td></tr>`;
         return;
       }
 
@@ -154,15 +188,29 @@
       });
     });
 
-    // Quick sample adder (+ Add Material button)
-    document.getElementById('add-item-btn').addEventListener('click', () => {
-      const name = prompt("Enter material name (e.g. Sheet Steel 10ga or Round Pipe 2\" OD):");
-      if (!name) return;
-      const dimensions = prompt("Enter dimensions/size:", "4x8 ft");
-      const quantity = prompt("Enter quantity:", "10");
+    // Save Material Form Handler
+    document.getElementById('save-material-btn').addEventListener('click', () => {
+      const name = document.getElementById('mat-name').value.trim();
+      const dimensions = document.getElementById('mat-dimensions').value.trim();
+      const quantity = document.getElementById('mat-quantity').value.trim();
+
+      if (!name) {
+        alert('Please enter a material name.');
+        return;
+      }
 
       const newRef = push(inventoryRef);
-      set(newRef, { name, dimensions, quantity });
+      set(newRef, {
+        name: name,
+        dimensions: dimensions || 'Standard',
+        quantity: quantity || '1'
+      }).then(() => {
+        // Clear inputs and close modal
+        document.getElementById('mat-name').value = '';
+        document.getElementById('mat-dimensions').value = '';
+        document.getElementById('mat-quantity').value = '';
+        addModal.classList.add('hidden');
+      });
     });
 
     // Event delegation for deleting items
