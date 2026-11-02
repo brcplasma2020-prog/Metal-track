@@ -100,23 +100,23 @@
           </div>
           <div>
             <label class="text-xs text-slate-300 font-semibold mb-1 block">Material Name / Grade:</label>
-            <input type="text" id="mat-name" placeholder="e.g. 2&quot; OD DOM Pipe" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
+            <input type="text" id="mat-name" placeholder="e.g. CS .25 5X10 or 2&quot; OD Pipe" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
           </div>
         </div>
 
         <div>
-          <label class="text-xs text-slate-300 font-semibold mb-1 block">Dimensions / Length:</label>
-          <input type="text" id="mat-dimensions" placeholder="e.g. 20 ft length or 5x10 ft" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
+          <label class="text-xs text-slate-300 font-semibold mb-1 block">Dimensions / Size / Length:</label>
+          <input type="text" id="mat-dimensions" placeholder="e.g. 5x10 ft or 20 ft length" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
         </div>
 
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="text-xs text-slate-300 font-semibold mb-1 block">Price per Unit ($):</label>
-            <input type="number" step="0.01" id="mat-price" placeholder="120.00" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
+            <input type="number" step="0.01" id="mat-price" placeholder="250.00" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
           </div>
           <div>
             <label class="text-xs text-slate-300 font-semibold mb-1 block">Quantity / Stock:</label>
-            <input type="number" id="mat-quantity" placeholder="4" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
+            <input type="number" id="mat-quantity" placeholder="2" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
           </div>
         </div>
 
@@ -226,9 +226,9 @@
       const matches = lower.match(/\d+(\.\d+)?/g);
       if (!matches || matches.length === 0) return 0;
 
-      let lengthVal = parseFloat(matches[matches.length - 1]); // usually last number is length (e.g. 20ft length)
+      let lengthVal = parseFloat(matches[matches.length - 1]);
       if (lower.includes('in') || lower.includes('"')) {
-        lengthVal = lengthVal / 12; // convert inches to feet if specified
+        lengthVal = lengthVal / 12;
       }
       return lengthVal > 0 ? lengthVal : 1;
     }
@@ -270,7 +270,7 @@
         const lineTotal = pricePerUnit * qty;
         grandTotal += lineTotal;
 
-        // Determine rate label based on category
+        // Determine rate display based on category
         const isLinear = category === 'Round Pipe' || category === 'Square Tube' || category === 'Structural / Beams';
         let rateDisplay = '';
 
@@ -302,7 +302,7 @@
             </button>
           </div>
 
-          <!-- Middle Block: Long Vertical Properties -->
+          <!-- Middle Block: Vertical Properties -->
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
             <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
               <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">Dimensions</span>
@@ -320,7 +320,7 @@
             </div>
 
             <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
-              <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">${isLinear ? 'Calculated Rate' : 'Calculated Rate'}</span>
+              <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">Calculated Rate</span>
               <span class="font-mono text-blue-400 font-semibold">${rateDisplay}</span>
             </div>
           </div>
@@ -398,15 +398,15 @@
         }
       }
     });
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js')
-        .then(reg => console.log('MetalTrack SW: Registered with scope:', reg.scope))
-        .catch(err => console.log('MetalTrack SW: Registration failed:', err));
-    });
-  }
-</script>
+
+    // Service Worker Registration for PWA Offline Functionality
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(reg => console.log('MetalTrack SW: Registered with scope:', reg.scope))
+          .catch(err => console.log('MetalTrack SW: Registration failed:', err));
+      });
+    }
   </script>
 </body>
 </html>
