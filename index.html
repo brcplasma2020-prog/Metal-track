@@ -50,7 +50,7 @@
     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4">
       <div class="w-full sm:w-auto">
         <h2 class="text-lg font-bold">Material Inventory</h2>
-        <p class="text-xs text-slate-400">Local auto-backup storage linked to active shop channel.</p>
+        <p class="text-xs text-slate-400">Vertical mobile layout with inline quantity controls & $/m² or $/ft rates.</p>
       </div>
 
       <div class="flex items-center gap-2 w-full sm:w-auto">
@@ -159,7 +159,7 @@
   <!-- Firebase & Local-First App Script Logic -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getDatabase, ref, onValue, push, set, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    import { getDatabase, ref, onValue, push, set, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
     // Firebase Configuration
     const firebaseConfig = {
@@ -181,7 +181,6 @@
     document.getElementById('current-sync-id').innerText = currentShopId;
     document.getElementById('modal-current-id').innerText = currentShopId;
 
-    // Local Storage Backup Key linked directly to the Shop Name/ID
     const backupStorageKey = `metaltrack_backup_${currentShopId}`;
 
     // Modal Triggers
@@ -236,24 +235,22 @@
       return lengthVal > 0 ? lengthVal : 1;
     }
 
-    // --- LOCAL-FIRST ARCHITECTURE ---
-    // 1. Load instantly from local device storage backup linked to shop name
+    // 1. Load instantly from local storage backup
     let cachedInventoryData = JSON.parse(localStorage.getItem(backupStorageKey)) || {};
     renderCards(cachedInventoryData);
 
     if (!navigator.onLine) {
-      document.getElementById('network-status').innerText = "Offline (Shop Backup Loaded)";
+      document.getElementById('network-status').innerText = "Offline (Shop Backup)";
       document.getElementById('network-dot').className = "w-2 h-2 rounded-full bg-amber-500 inline-block";
     }
 
-    // 2. Bind Firebase for real-time sync when online & auto-update local backup folder
+    // 2. Real-time Firebase Synchronization
     const inventoryRef = ref(db, `shops/${currentShopId}/inventory`);
 
     onValue(inventoryRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
         cachedInventoryData = data;
-        // Automatically save/backup to internal storage folder linked to shop name
         localStorage.setItem(backupStorageKey, JSON.stringify(data));
         renderCards(cachedInventoryData);
       }
@@ -262,9 +259,9 @@
     }, (error) => {
       document.getElementById('network-status').innerText = "Offline Mode (Shop Backup)";
       document.getElementById('network-dot').className = "w-2 h-2 rounded-full bg-amber-500 inline-block";
-      // Fallback already rendered from localStorage on startup!
     });
 
+    // Render Material Cards with Inline Quantity Editing
     function renderCards(data) {
       const container = document.getElementById('inventory-list');
       const selectedCategory = document.getElementById('category-filter').value;
@@ -308,6 +305,7 @@
         const card = document.createElement('div');
         card.className = "bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4 hover:border-slate-700 transition";
         card.innerHTML = `
+          <!-- Top Row: Name, Category, Delete -->
           <div class="flex justify-between items-start gap-2 border-b border-slate-800 pb-3">
             <div>
               <span class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs font-medium border border-slate-700/50 inline-block mb-1.5">${category}</span>
@@ -318,15 +316,21 @@
             </button>
           </div>
 
+          <!-- Middle Block: Vertical Properties with Editable Quantity -->
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
             <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
               <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">Dimensions</span>
               <span class="font-mono text-slate-200">${item.dimensions || 'N/A'}</span>
             </div>
             
-            <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
-              <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">Quantity</span>
-              <span class="font-mono text-slate-200">${qty}</span>
+            <!-- Inline Editable Quantity Control -->
+            <div class="bg-slate-950/60 p-2.5 rounded-xl border border-blue-900/40">
+              <span class="text-[10px] uppercase text-blue-400 font-semibold block mb-1">Quantity</span>
+              <div class="flex items-center gap-1">
+                <button data-id="${id}" data-action="dec" class="qty-btn bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold w-6 h-6 rounded-md flex items-center justify-center text-xs transition border border-slate-700">-</button>
+                <input type="number" data-id="${id}" value="${qty}" class="qty-input w-12 bg-slate-900 border border-slate-700 rounded-md text-center text-xs font-mono text-white font-bold py-0.5 focus:outline-none focus:border-blue-500">
+                <button data-id="${id}" data-action="inc" class="qty-btn bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold w-6 h-6 rounded-md flex items-center justify-center text-xs transition border border-slate-700">+</button>
+              </div>
             </div>
 
             <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
@@ -340,6 +344,7 @@
             </div>
           </div>
 
+          <!-- Bottom Row: Reserved Tag & Line Total -->
           <div class="flex justify-between items-center pt-1 border-t border-slate-800/60 text-xs">
             <div class="flex items-center gap-1.5">
               <span class="text-slate-400 font-medium">Reserved:</span>
@@ -364,12 +369,51 @@
       document.getElementById('total-inventory-value').innerText = `$${grandTotal.toFixed(2)}`;
     }
 
+    // Helper: Sync Quantity Update to Local Storage & Firebase
+    function updateQuantity(id, newQty) {
+      const qtyVal = Math.max(0, parseInt(newQty) || 0);
+      
+      if (cachedInventoryData[id]) {
+        cachedInventoryData[id].quantity = qtyVal.toString();
+        
+        // Save to local device backup
+        localStorage.setItem(backupStorageKey, JSON.stringify(cachedInventoryData));
+        renderCards(cachedInventoryData);
+
+        // Sync to Firebase
+        update(ref(db, `shops/${currentShopId}/inventory/${id}`), {
+          quantity: qtyVal.toString()
+        }).catch((err) => {
+          console.log('Firebase sync queued locally');
+        });
+      }
+    }
+
+    // Event Listener: Increment / Decrement Buttons & Direct Input Changes
+    document.addEventListener('click', (e) => {
+      const qtyBtn = e.target.closest('.qty-btn');
+      if (qtyBtn) {
+        const id = qtyBtn.getAttribute('data-id');
+        const action = qtyBtn.getAttribute('data-action');
+        const currentQty = parseInt(cachedInventoryData[id]?.quantity || 0);
+        const newQty = action === 'inc' ? currentQty + 1 : currentQty - 1;
+        updateQuantity(id, newQty);
+      }
+    });
+
+    document.addEventListener('change', (e) => {
+      if (e.target.classList.contains('qty-input')) {
+        const id = e.target.getAttribute('data-id');
+        updateQuantity(id, e.target.value);
+      }
+    });
+
     // Category Filter Event
     document.getElementById('category-filter').addEventListener('change', () => {
       renderCards(cachedInventoryData);
     });
 
-    // Save Material Handler with Instant Local Auto-Backup
+    // Save Material Action
     document.getElementById('save-material-btn').addEventListener('click', () => {
       const category = document.getElementById('mat-category').value;
       const name = document.getElementById('mat-name').value.trim();
@@ -394,23 +438,19 @@
         reserved: reserved || 'General Stock'
       };
 
-      // Save to Firebase
       set(newRef, newItemData).then(() => {
         addModal.classList.add('hidden');
       }).catch((err) => {
-        // Fallback save locally if network drops during submit
         cachedInventoryData[newItemId] = newItemData;
         localStorage.setItem(backupStorageKey, JSON.stringify(cachedInventoryData));
         renderCards(cachedInventoryData);
         addModal.classList.add('hidden');
       });
 
-      // Instantly update local backup folder storage and render
       cachedInventoryData[newItemId] = newItemData;
       localStorage.setItem(backupStorageKey, JSON.stringify(cachedInventoryData));
       renderCards(cachedInventoryData);
 
-      // Clear form inputs
       document.getElementById('mat-name').value = '';
       document.getElementById('mat-dimensions').value = '';
       document.getElementById('mat-price').value = '';
@@ -418,7 +458,7 @@
       document.getElementById('mat-reserved').value = '';
     });
 
-    // Delete Item Action with Local Backup Update
+    // Delete Item Action
     document.addEventListener('click', (e) => {
       if (e.target.classList.contains('delete-btn')) {
         const id = e.target.getAttribute('data-id');
