@@ -50,7 +50,7 @@
     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4">
       <div class="w-full sm:w-auto">
         <h2 class="text-lg font-bold">Material Inventory</h2>
-        <p class="text-xs text-slate-400">Vertical mobile layout with automatic $/m² or $/ft calculations.</p>
+        <p class="text-xs text-slate-400">Local auto-backup storage linked to active shop channel.</p>
       </div>
 
       <div class="flex items-center gap-2 w-full sm:w-auto">
@@ -73,7 +73,7 @@
     <!-- Vertical Cards List Container -->
     <div id="inventory-list" class="space-y-4">
       <div class="p-8 text-center text-slate-500 bg-slate-900 rounded-2xl border border-slate-800">
-        Connecting to Firebase & loading inventory channel...
+        Loading inventory from local shop storage...
       </div>
     </div>
   </main>
@@ -127,7 +127,7 @@
       </div>
 
       <button id="save-material-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 py-3.5 rounded-xl font-bold text-sm transition shadow-lg">
-        Save Item to Inventory
+        Save Item & Auto-Backup
       </button>
     </div>
   </div>
@@ -156,10 +156,10 @@
     </div>
   </div>
 
-  <!-- Firebase & App Script Logic -->
+  <!-- Firebase & Local-First App Script Logic -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getDatabase, ref, onValue, push, set, remove, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    import { getDatabase, ref, onValue, push, set, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
     // Firebase Configuration
     const firebaseConfig = {
@@ -180,6 +180,9 @@
     let currentShopId = localStorage.getItem('metaltrack_shop_id') || 'MS-336E';
     document.getElementById('current-sync-id').innerText = currentShopId;
     document.getElementById('modal-current-id').innerText = currentShopId;
+
+    // Local Storage Backup Key linked directly to the Shop Name/ID
+    const backupStorageKey = `metaltrack_backup_${currentShopId}`;
 
     // Modal Triggers
     const syncModal = document.getElementById('sync-modal');
@@ -233,41 +236,34 @@
       return lengthVal > 0 ? lengthVal : 1;
     }
 
-    // Realtime Database Binding & Card Rendering
-    const inventoryRef = ref(db, `shops/${currentShopId}/inventory`);
-    let cachedInventoryData = {};
+    // --- LOCAL-FIRST ARCHITECTURE ---
+    // 1. Load instantly from local device storage backup linked to shop name
+    let cachedInventoryData = JSON.parse(localStorage.getItem(backupStorageKey)) || {};
+    renderCards(cachedInventoryData);
 
-    // Listen for real-time changes when online
+    if (!navigator.onLine) {
+      document.getElementById('network-status').innerText = "Offline (Shop Backup Loaded)";
+      document.getElementById('network-dot').className = "w-2 h-2 rounded-full bg-amber-500 inline-block";
+    }
+
+    // 2. Bind Firebase for real-time sync when online & auto-update local backup folder
+    const inventoryRef = ref(db, `shops/${currentShopId}/inventory`);
+
     onValue(inventoryRef, (snapshot) => {
       const data = snapshot.val();
-      cachedInventoryData = data || {};
-      renderCards(cachedInventoryData);
+      if (data) {
+        cachedInventoryData = data;
+        // Automatically save/backup to internal storage folder linked to shop name
+        localStorage.setItem(backupStorageKey, JSON.stringify(data));
+        renderCards(cachedInventoryData);
+      }
       document.getElementById('network-status').innerText = "Ready / Synced";
       document.getElementById('network-dot').className = "w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse";
     }, (error) => {
-      handleOfflineFallback();
-    });
-
-    // Immediate offline check on startup
-    if (!navigator.onLine) {
-      handleOfflineFallback();
-    }
-
-    function handleOfflineFallback() {
-      document.getElementById('network-status').innerText = "Offline Mode (Cached)";
+      document.getElementById('network-status').innerText = "Offline Mode (Shop Backup)";
       document.getElementById('network-dot').className = "w-2 h-2 rounded-full bg-amber-500 inline-block";
-      
-      get(inventoryRef).then((snapshot) => {
-        if (snapshot.exists()) {
-          cachedInventoryData = snapshot.val();
-          renderCards(cachedInventoryData);
-        } else {
-          renderCards({});
-        }
-      }).catch(() => {
-        renderCards({});
-      });
-    }
+      // Fallback already rendered from localStorage on startup!
+    });
 
     function renderCards(data) {
       const container = document.getElementById('inventory-list');
@@ -373,7 +369,7 @@
       renderCards(cachedInventoryData);
     });
 
-    // Save Material Handler
+    // Save Material Handler with Instant Local Auto-Backup
     document.getElementById('save-material-btn').addEventListener('click', () => {
       const category = document.getElementById('mat-category').value;
       const name = document.getElementById('mat-name').value.trim();
@@ -388,36 +384,54 @@
       }
 
       const newRef = push(inventoryRef);
-      set(newRef, {
+      const newItemId = newRef.key;
+      const newItemData = {
         category,
         name,
         dimensions: dimensions || 'Standard',
         price: price || '0.00',
         quantity: quantity || '1',
         reserved: reserved || 'General Stock'
-      }).then(() => {
-        document.getElementById('mat-name').value = '';
-        document.getElementById('mat-dimensions').value = '';
-        document.getElementById('mat-price').value = '';
-        document.getElementById('mat-quantity').value = '';
-        document.getElementById('mat-reserved').value = '';
+      };
+
+      // Save to Firebase
+      set(newRef, newItemData).then(() => {
         addModal.classList.add('hidden');
       }).catch((err) => {
-        alert('Firebase save failed: ' + err.message);
+        // Fallback save locally if network drops during submit
+        cachedInventoryData[newItemId] = newItemData;
+        localStorage.setItem(backupStorageKey, JSON.stringify(cachedInventoryData));
+        renderCards(cachedInventoryData);
+        addModal.classList.add('hidden');
       });
+
+      // Instantly update local backup folder storage and render
+      cachedInventoryData[newItemId] = newItemData;
+      localStorage.setItem(backupStorageKey, JSON.stringify(cachedInventoryData));
+      renderCards(cachedInventoryData);
+
+      // Clear form inputs
+      document.getElementById('mat-name').value = '';
+      document.getElementById('mat-dimensions').value = '';
+      document.getElementById('mat-price').value = '';
+      document.getElementById('mat-quantity').value = '';
+      document.getElementById('mat-reserved').value = '';
     });
 
-    // Delete Item Action
+    // Delete Item Action with Local Backup Update
     document.addEventListener('click', (e) => {
       if (e.target.classList.contains('delete-btn')) {
         const id = e.target.getAttribute('data-id');
-        if (confirm("Permanently delete this item from the active shop channel?")) {
+        if (confirm("Permanently delete this item from inventory?")) {
           remove(ref(db, `shops/${currentShopId}/inventory/${id}`));
+          delete cachedInventoryData[id];
+          localStorage.setItem(backupStorageKey, JSON.stringify(cachedInventoryData));
+          renderCards(cachedInventoryData);
         }
       }
     });
 
-    // Service Worker Registration for PWA Offline Functionality
+    // Service Worker Registration
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
