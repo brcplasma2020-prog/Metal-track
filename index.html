@@ -159,7 +159,7 @@
   <!-- Firebase & App Script Logic -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getDatabase, ref, onValue, push, set, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    import { getDatabase, ref, onValue, push, set, remove, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
     // Firebase Configuration
     const firebaseConfig = {
@@ -237,6 +237,7 @@
     const inventoryRef = ref(db, `shops/${currentShopId}/inventory`);
     let cachedInventoryData = {};
 
+    // Listen for real-time changes when online
     onValue(inventoryRef, (snapshot) => {
       const data = snapshot.val();
       cachedInventoryData = data || {};
@@ -244,9 +245,29 @@
       document.getElementById('network-status').innerText = "Ready / Synced";
       document.getElementById('network-dot').className = "w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse";
     }, (error) => {
-      document.getElementById('network-status').innerText = "Offline Mode";
-      document.getElementById('network-dot').className = "w-2 h-2 rounded-full bg-amber-500 inline-block";
+      handleOfflineFallback();
     });
+
+    // Immediate offline check on startup
+    if (!navigator.onLine) {
+      handleOfflineFallback();
+    }
+
+    function handleOfflineFallback() {
+      document.getElementById('network-status').innerText = "Offline Mode (Cached)";
+      document.getElementById('network-dot').className = "w-2 h-2 rounded-full bg-amber-500 inline-block";
+      
+      get(inventoryRef).then((snapshot) => {
+        if (snapshot.exists()) {
+          cachedInventoryData = snapshot.val();
+          renderCards(cachedInventoryData);
+        } else {
+          renderCards({});
+        }
+      }).catch(() => {
+        renderCards({});
+      });
+    }
 
     function renderCards(data) {
       const container = document.getElementById('inventory-list');
@@ -347,10 +368,12 @@
       document.getElementById('total-inventory-value').innerText = `$${grandTotal.toFixed(2)}`;
     }
 
+    // Category Filter Event
     document.getElementById('category-filter').addEventListener('change', () => {
       renderCards(cachedInventoryData);
     });
 
+    // Save Material Handler
     document.getElementById('save-material-btn').addEventListener('click', () => {
       const category = document.getElementById('mat-category').value;
       const name = document.getElementById('mat-name').value.trim();
@@ -384,6 +407,7 @@
       });
     });
 
+    // Delete Item Action
     document.addEventListener('click', (e) => {
       if (e.target.classList.contains('delete-btn')) {
         const id = e.target.getAttribute('data-id');
@@ -393,6 +417,7 @@
       }
     });
 
+    // Service Worker Registration for PWA Offline Functionality
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
