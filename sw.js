@@ -1,13 +1,13 @@
-// --- MetalTrack Advanced Offline Service Worker ---
+// --- MetalTrack Service Worker ---
 
-const CACHE_NAME = 'metaltrack-v2-industrial';
-
+const CACHE_NAME = 'metaltrack-v3-industrial';
 const ASSETS_TO_CACHE = [
   'index.html',
-  'manifest.json'
+  'manifest.json',
+  'icon-192.png',
+  'icon-512.png'
 ];
 
-// 1. Install Event: Cache App Shell
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -17,7 +17,6 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// 2. Activate Event: Clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -33,36 +32,22 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// 3. Fetch Event: Network-First for Firebase & APIs, Cache-First for App Assets
+// Cache-first for app shell assets ONLY. Never intercept Firebase API calls here.
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // If the request is going to Firebase Realtime Database
-  if (url.origin.includes('firebaseio.com')) {
-    event.respondWith(
-      fetch(event.request)
-        .then((networkResponse) => {
-          // Clone and cache the fresh Firebase data response
-          return caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, networkResponse.clone());
-            return networkResponse;
-          });
-        })
-        .catch(() => {
-          // If offline, fall back to cached Firebase data
-          return caches.match(event.request);
-        })
-    );
-  } else {
-    // Standard asset fetch (Cache-First)
-    event.respondWith(
-      caches.match(event.request).then((cachedResponse) => {
-        return cachedResponse || fetch(event.request).catch(() => {
-          if (event.request.mode === 'navigate') {
-            return caches.match('index.html');
-          }
-        });
-      })
-    );
+  // Let Firebase requests pass straight through to network/IndexedDB SDK
+  if (url.origin.includes('firebaseio.com') || url.origin.includes('googleapis.com')) {
+    return;
   }
+
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      return cachedResponse || fetch(event.request).catch(() => {
+        if (event.request.mode === 'navigate') {
+          return caches.match('index.html');
+        }
+      });
+    })
+  );
 });
