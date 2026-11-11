@@ -50,7 +50,7 @@
     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4">
       <div class="w-full sm:w-auto">
         <h2 class="text-lg font-bold">Material Inventory</h2>
-        <p class="text-xs text-slate-400">Vertical mobile layout with inline quantity controls & $/m² or $/ft rates.</p>
+        <p class="text-xs text-slate-400">Multi-pricing options, item editing, & local shop auto-backup.</p>
       </div>
 
       <div class="flex items-center gap-2 w-full sm:w-auto">
@@ -78,14 +78,16 @@
     </div>
   </main>
 
-  <!-- Add Material Modal -->
+  <!-- Add / Edit Material Modal -->
   <div id="add-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center p-4 z-50">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative space-y-5">
       <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-        <h3 class="text-base font-bold flex items-center gap-2">➕ Add New Stock Item</h3>
+        <h3 id="modal-title" class="text-base font-bold flex items-center gap-2">➕ Add New Stock Item</h3>
         <button id="close-add-modal" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
       </div>
       
+      <input type="hidden" id="edit-item-id" value="">
+
       <div class="space-y-4">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -109,25 +111,36 @@
           <input type="text" id="mat-dimensions" placeholder="e.g. 5x10 ft or 20 ft length" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
+        <!-- Multiple Pricing Option Selector -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
           <div>
-            <label class="text-xs text-slate-300 font-semibold mb-1 block">Price per Unit ($):</label>
-            <input type="number" step="0.01" id="mat-price" placeholder="250.00" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
+            <label class="text-xs text-blue-400 font-semibold mb-1 block">Pricing Method:</label>
+            <select id="pricing-mode" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white text-xs focus:outline-none focus:border-blue-500">
+              <option value="unit">Price per Unit (Piece/Sheet)</option>
+              <option value="sq">Price per Square Unit ($/m² or $/ft²)</option>
+              <option value="total">Total Batch Price</option>
+            </select>
           </div>
+          <div>
+            <label id="price-label" class="text-xs text-slate-300 font-semibold mb-1 block">Price Amount ($):</label>
+            <input type="number" step="0.01" id="mat-price" placeholder="250.00" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white text-xs focus:outline-none focus:border-emerald-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="text-xs text-slate-300 font-semibold mb-1 block">Quantity / Stock:</label>
             <input type="number" id="mat-quantity" placeholder="2" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
           </div>
-        </div>
-
-        <div>
-          <label class="text-xs text-slate-300 font-semibold mb-1 block">Reserved for Job / Client (Optional):</label>
-          <input type="text" id="mat-reserved" placeholder="e.g. Smokeless Fire Pit Build" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
+          <div>
+            <label class="text-xs text-slate-300 font-semibold mb-1 block">Reserved for Job / Client:</label>
+            <input type="text" id="mat-reserved" placeholder="e.g. Fire Pit Build" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
+          </div>
         </div>
       </div>
 
       <button id="save-material-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 py-3.5 rounded-xl font-bold text-sm transition shadow-lg">
-        Save Item & Auto-Backup
+        Save Material & Auto-Backup
       </button>
     </div>
   </div>
@@ -156,12 +169,11 @@
     </div>
   </div>
 
-  <!-- Firebase & Local-First App Script Logic -->
+  <!-- Firebase & App Script Logic -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getDatabase, ref, onValue, push, set, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    // Firebase Configuration
     const firebaseConfig = {
       apiKey: "AIzaSyDHDDCPeOyHkDGpHZAU9AAdKm14M5LCT-0",
       authDomain: "inventory-management-336e1.firebaseapp.com",
@@ -176,23 +188,30 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // Persistent Shop ID State
     let currentShopId = localStorage.getItem('metaltrack_shop_id') || 'MS-336E';
     document.getElementById('current-sync-id').innerText = currentShopId;
     document.getElementById('modal-current-id').innerText = currentShopId;
 
     const backupStorageKey = `metaltrack_backup_${currentShopId}`;
 
-    // Modal Triggers
     const syncModal = document.getElementById('sync-modal');
     document.getElementById('open-sync-modal').addEventListener('click', () => syncModal.classList.remove('hidden') || syncModal.classList.add('flex'));
     document.getElementById('close-sync-modal').addEventListener('click', () => syncModal.classList.add('hidden'));
 
     const addModal = document.getElementById('add-modal');
-    document.getElementById('open-add-modal').addEventListener('click', () => addModal.classList.remove('hidden') || addModal.classList.add('flex'));
+    document.getElementById('open-add-modal').addEventListener('click', () => {
+      document.getElementById('modal-title').innerText = "➕ Add New Stock Item";
+      document.getElementById('edit-item-id').value = "";
+      document.getElementById('mat-name').value = "";
+      document.getElementById('mat-dimensions').value = "";
+      document.getElementById('mat-price').value = "";
+      document.getElementById('mat-quantity').value = "";
+      document.getElementById('mat-reserved').value = "";
+      addModal.classList.remove('hidden');
+      addModal.classList.add('flex');
+    });
     document.getElementById('close-add-modal').addEventListener('click', () => addModal.classList.add('hidden'));
 
-    // Channel Switch Handler
     document.getElementById('connect-channel-btn').addEventListener('click', () => {
       const inputVal = document.getElementById('target-shop-input').value.trim().toUpperCase();
       if (inputVal) {
@@ -203,48 +222,39 @@
       }
     });
 
-    // Helper: Calculate area in m² for flat metal sheets/plates
+    // Dynamic pricing mode label adjustment
+    document.getElementById('pricing-mode').addEventListener('change', (e) => {
+      const mode = e.target.value;
+      const label = document.getElementById('price-label');
+      if (mode === 'sq') label.innerText = "Price per Area/Length ($):";
+      else if (mode === 'total') label.innerText = "Total Batch Price ($):";
+      else label.innerText = "Price per Unit ($):";
+    });
+
     function calculateAreaInSqMeters(dimStr) {
       if (!dimStr) return 0;
       const lower = dimStr.toLowerCase();
       const matches = lower.match(/\d+(\.\d+)?/g);
       if (!matches || matches.length < 2) return 0;
-
       const val1 = parseFloat(matches[0]);
       const val2 = parseFloat(matches[1]);
-
-      if (lower.includes('m') && !lower.includes('ft')) {
-        return val1 * val2;
-      } else {
-        const sqFt = val1 * val2;
-        return sqFt * 0.092903;
-      }
+      if (lower.includes('m') && !lower.includes('ft')) return val1 * val2;
+      return (val1 * val2) * 0.092903;
     }
 
-    // Helper: Extract length in feet for linear items (pipes, tubes, beams)
     function extractLengthInFeet(dimStr) {
       if (!dimStr) return 0;
       const lower = dimStr.toLowerCase();
       const matches = lower.match(/\d+(\.\d+)?/g);
       if (!matches || matches.length === 0) return 0;
-
       let lengthVal = parseFloat(matches[matches.length - 1]);
-      if (lower.includes('in') || lower.includes('"')) {
-        lengthVal = lengthVal / 12;
-      }
+      if (lower.includes('in') || lower.includes('"')) lengthVal = lengthVal / 12;
       return lengthVal > 0 ? lengthVal : 1;
     }
 
-    // 1. Load instantly from local storage backup
     let cachedInventoryData = JSON.parse(localStorage.getItem(backupStorageKey)) || {};
     renderCards(cachedInventoryData);
 
-    if (!navigator.onLine) {
-      document.getElementById('network-status').innerText = "Offline (Shop Backup)";
-      document.getElementById('network-dot').className = "w-2 h-2 rounded-full bg-amber-500 inline-block";
-    }
-
-    // 2. Real-time Firebase Synchronization
     const inventoryRef = ref(db, `shops/${currentShopId}/inventory`);
 
     onValue(inventoryRef, (snapshot) => {
@@ -257,11 +267,10 @@
       document.getElementById('network-status').innerText = "Ready / Synced";
       document.getElementById('network-dot').className = "w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse";
     }, (error) => {
-      document.getElementById('network-status').innerText = "Offline Mode (Shop Backup)";
+      document.getElementById('network-status').innerText = "Offline (Shop Backup)";
       document.getElementById('network-dot').className = "w-2 h-2 rounded-full bg-amber-500 inline-block";
     });
 
-    // Render Material Cards with Inline Quantity Editing
     function renderCards(data) {
       const container = document.getElementById('inventory-list');
       const selectedCategory = document.getElementById('category-filter').value;
@@ -282,21 +291,38 @@
 
         count++;
         const qty = parseFloat(item.quantity) || 0;
-        const pricePerUnit = parseFloat(item.price) || 0;
-        const lineTotal = pricePerUnit * qty;
-        grandTotal += lineTotal;
+        let unitPrice = parseFloat(item.price) || 0;
+
+        // Resolve pricing mode calculation
+        const pricingMode = item.pricingMode || 'unit';
+        let effectiveUnit = unitPrice;
 
         const isLinear = category === 'Round Pipe' || category === 'Square Tube' || category === 'Structural' || category === 'Structural / Beams';
-        let rateDisplay = '';
 
+        if (pricingMode === 'sq') {
+          if (isLinear) {
+            const ft = extractLengthInFeet(item.dimensions);
+            effectiveUnit = unitPrice * ft;
+          } else {
+            const m2 = calculateAreaInSqMeters(item.dimensions);
+            effectiveUnit = unitPrice * m2;
+          }
+        } else if (pricingMode === 'total') {
+          effectiveUnit = qty > 0 ? (unitPrice / qty) : 0;
+        }
+
+        const lineTotal = effectiveUnit * qty;
+        grandTotal += lineTotal;
+
+        let rateDisplay = '';
         if (isLinear) {
           const totalFeet = extractLengthInFeet(item.dimensions);
-          const pricePerFt = totalFeet > 0 ? (pricePerUnit / totalFeet).toFixed(2) : 'N/A';
-          rateDisplay = pricePerFt !== 'N/A' ? `$${pricePerFt}/ft` : 'N/A';
+          const pFt = totalFeet > 0 ? (effectiveUnit / totalFeet).toFixed(2) : 'N/A';
+          rateDisplay = pFt !== 'N/A' ? `$${pFt}/ft` : 'N/A';
         } else {
           const sqMeters = calculateAreaInSqMeters(item.dimensions);
-          const pricePerSqM = sqMeters > 0 ? (pricePerUnit / sqMeters).toFixed(2) : 'N/A';
-          rateDisplay = pricePerSqM !== 'N/A' ? `$${pricePerSqM}/m²` : 'N/A';
+          const pSqM = sqMeters > 0 ? (effectiveUnit / sqMeters).toFixed(2) : 'N/A';
+          rateDisplay = pSqM !== 'N/A' ? `$${pSqM}/m²` : 'N/A';
         }
 
         const reservedJob = item.reserved && item.reserved.trim() !== '' ? item.reserved : 'General Stock';
@@ -305,25 +331,27 @@
         const card = document.createElement('div');
         card.className = "bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4 hover:border-slate-700 transition";
         card.innerHTML = `
-          <!-- Top Row: Name, Category, Delete -->
           <div class="flex justify-between items-start gap-2 border-b border-slate-800 pb-3">
             <div>
               <span class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs font-medium border border-slate-700/50 inline-block mb-1.5">${category}</span>
               <h3 class="text-base font-bold text-white tracking-wide">${item.name || 'Unnamed Material'}</h3>
             </div>
-            <button data-id="${id}" class="delete-btn text-red-400 hover:text-red-300 text-xs px-3 py-1.5 bg-red-950/50 hover:bg-red-900/60 rounded-xl border border-red-900/50 transition">
-              Delete
-            </button>
+            <div class="flex items-center gap-2">
+              <button data-id="${id}" class="edit-btn text-blue-400 hover:text-blue-300 text-xs px-3 py-1.5 bg-blue-950/50 hover:bg-blue-900/60 rounded-xl border border-blue-900/50 transition">
+                Edit
+              </button>
+              <button data-id="${id}" class="delete-btn text-red-400 hover:text-red-300 text-xs px-3 py-1.5 bg-red-950/50 hover:bg-red-900/60 rounded-xl border border-red-900/50 transition">
+                Delete
+              </button>
+            </div>
           </div>
 
-          <!-- Middle Block: Vertical Properties with Editable Quantity -->
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
             <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
               <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">Dimensions</span>
               <span class="font-mono text-slate-200">${item.dimensions || 'N/A'}</span>
             </div>
             
-            <!-- Inline Editable Quantity Control -->
             <div class="bg-slate-950/60 p-2.5 rounded-xl border border-blue-900/40">
               <span class="text-[10px] uppercase text-blue-400 font-semibold block mb-1">Quantity</span>
               <div class="flex items-center gap-1">
@@ -335,7 +363,7 @@
 
             <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
               <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">Unit Price</span>
-              <span class="font-mono text-slate-200">$${pricePerUnit.toFixed(2)}</span>
+              <span class="font-mono text-slate-200">$${effectiveUnit.toFixed(2)}</span>
             </div>
 
             <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
@@ -344,7 +372,6 @@
             </div>
           </div>
 
-          <!-- Bottom Row: Reserved Tag & Line Total -->
           <div class="flex justify-between items-center pt-1 border-t border-slate-800/60 text-xs">
             <div class="flex items-center gap-1.5">
               <span class="text-slate-400 font-medium">Reserved:</span>
@@ -369,97 +396,45 @@
       document.getElementById('total-inventory-value').innerText = `$${grandTotal.toFixed(2)}`;
     }
 
-    // Helper: Sync Quantity Update to Local Storage & Firebase
     function updateQuantity(id, newQty) {
       const qtyVal = Math.max(0, parseInt(newQty) || 0);
-      
       if (cachedInventoryData[id]) {
         cachedInventoryData[id].quantity = qtyVal.toString();
-        
-        // Save to local device backup
         localStorage.setItem(backupStorageKey, JSON.stringify(cachedInventoryData));
         renderCards(cachedInventoryData);
-
-        // Sync to Firebase
-        update(ref(db, `shops/${currentShopId}/inventory/${id}`), {
-          quantity: qtyVal.toString()
-        }).catch((err) => {
-          console.log('Firebase sync queued locally');
-        });
+        update(ref(db, `shops/${currentShopId}/inventory/${id}`), { quantity: qtyVal.toString() }).catch(() => {});
       }
     }
 
-    // Event Listener: Increment / Decrement Buttons & Direct Input Changes
     document.addEventListener('click', (e) => {
       const qtyBtn = e.target.closest('.qty-btn');
       if (qtyBtn) {
         const id = qtyBtn.getAttribute('data-id');
         const action = qtyBtn.getAttribute('data-action');
         const currentQty = parseInt(cachedInventoryData[id]?.quantity || 0);
-        const newQty = action === 'inc' ? currentQty + 1 : currentQty - 1;
-        updateQuantity(id, newQty);
+        updateQuantity(id, action === 'inc' ? currentQty + 1 : currentQty - 1);
       }
-    });
 
-    document.addEventListener('change', (e) => {
-      if (e.target.classList.contains('qty-input')) {
+      // Edit Item Trigger
+      if (e.target.classList.contains('edit-btn')) {
         const id = e.target.getAttribute('data-id');
-        updateQuantity(id, e.target.value);
-      }
-    });
-
-    // Category Filter Event
-    document.getElementById('category-filter').addEventListener('change', () => {
-      renderCards(cachedInventoryData);
-    });
-
-    // Save Material Action
-    document.getElementById('save-material-btn').addEventListener('click', () => {
-      const category = document.getElementById('mat-category').value;
-      const name = document.getElementById('mat-name').value.trim();
-      const dimensions = document.getElementById('mat-dimensions').value.trim();
-      const price = document.getElementById('mat-price').value.trim();
-      const quantity = document.getElementById('mat-quantity').value.trim();
-      const reserved = document.getElementById('mat-reserved').value.trim();
-
-      if (!name) {
-        alert('Please enter a material name.');
-        return;
+        const item = cachedInventoryData[id];
+        if (item) {
+          document.getElementById('modal-title').innerText = "✏️ Edit Stock Item";
+          document.getElementById('edit-item-id').value = id;
+          document.getElementById('mat-category').value = item.category || 'Sheet Metal';
+          document.getElementById('mat-name').value = item.name || '';
+          document.getElementById('mat-dimensions').value = item.dimensions || '';
+          document.getElementById('pricing-mode').value = item.pricingMode || 'unit';
+          document.getElementById('mat-price').value = item.price || '';
+          document.getElementById('mat-quantity').value = item.quantity || '1';
+          document.getElementById('mat-reserved').value = item.reserved || '';
+          addModal.classList.remove('hidden');
+          addModal.classList.add('flex');
+        }
       }
 
-      const newRef = push(inventoryRef);
-      const newItemId = newRef.key;
-      const newItemData = {
-        category,
-        name,
-        dimensions: dimensions || 'Standard',
-        price: price || '0.00',
-        quantity: quantity || '1',
-        reserved: reserved || 'General Stock'
-      };
-
-      set(newRef, newItemData).then(() => {
-        addModal.classList.add('hidden');
-      }).catch((err) => {
-        cachedInventoryData[newItemId] = newItemData;
-        localStorage.setItem(backupStorageKey, JSON.stringify(cachedInventoryData));
-        renderCards(cachedInventoryData);
-        addModal.classList.add('hidden');
-      });
-
-      cachedInventoryData[newItemId] = newItemData;
-      localStorage.setItem(backupStorageKey, JSON.stringify(cachedInventoryData));
-      renderCards(cachedInventoryData);
-
-      document.getElementById('mat-name').value = '';
-      document.getElementById('mat-dimensions').value = '';
-      document.getElementById('mat-price').value = '';
-      document.getElementById('mat-quantity').value = '';
-      document.getElementById('mat-reserved').value = '';
-    });
-
-    // Delete Item Action
-    document.addEventListener('click', (e) => {
+      // Delete Item Trigger
       if (e.target.classList.contains('delete-btn')) {
         const id = e.target.getAttribute('data-id');
         if (confirm("Permanently delete this item from inventory?")) {
@@ -471,12 +446,62 @@
       }
     });
 
-    // Service Worker Registration
+    document.addEventListener('change', (e) => {
+      if (e.target.classList.contains('qty-input')) {
+        updateQuantity(e.target.getAttribute('data-id'), e.target.value);
+      }
+    });
+
+    document.getElementById('category-filter').addEventListener('change', () => renderCards(cachedInventoryData));
+
+    // Save / Update Material Action
+    document.getElementById('save-material-btn').addEventListener('click', () => {
+      const editId = document.getElementById('edit-item-id').value;
+      const category = document.getElementById('mat-category').value;
+      const name = document.getElementById('mat-name').value.trim();
+      const dimensions = document.getElementById('mat-dimensions').value.trim();
+      const pricingMode = document.getElementById('pricing-mode').value;
+      const price = document.getElementById('mat-price').value.trim();
+      const quantity = document.getElementById('mat-quantity').value.trim();
+      const reserved = document.getElementById('mat-reserved').value.trim();
+
+      if (!name) {
+        alert('Please enter a material name.');
+        return;
+      }
+
+      const itemData = {
+        category,
+        name,
+        dimensions: dimensions || 'Standard',
+        pricingMode,
+        price: price || '0.00',
+        quantity: quantity || '1',
+        reserved: reserved || 'General Stock'
+      };
+
+      if (editId) {
+        // Update existing item
+        cachedInventoryData[editId] = itemData;
+        localStorage.setItem(backupStorageKey, JSON.stringify(cachedInventoryData));
+        renderCards(cachedInventoryData);
+        update(ref(db, `shops/${currentShopId}/inventory/${editId}`), itemData).catch(() => {});
+      } else {
+        // Create new item
+        const newRef = push(inventoryRef);
+        const newItemId = newRef.key;
+        cachedInventoryData[newItemId] = itemData;
+        localStorage.setItem(backupStorageKey, JSON.stringify(cachedInventoryData));
+        renderCards(cachedInventoryData);
+        set(newRef, itemData).catch(() => {});
+      }
+
+      addModal.classList.add('hidden');
+    });
+
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js')
-          .then(reg => console.log('MetalTrack SW registered:', reg.scope))
-          .catch(err => console.log('MetalTrack SW failed:', err));
+        navigator.serviceWorker.register('sw.js').catch(() => {});
       });
     }
   </script>
