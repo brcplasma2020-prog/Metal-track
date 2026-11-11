@@ -50,7 +50,7 @@
     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4">
       <div class="w-full sm:w-auto">
         <h2 class="text-lg font-bold">Material Inventory</h2>
-        <p class="text-xs text-slate-400">Multi-pricing options, item editing, & local shop auto-backup.</p>
+        <p class="text-xs text-slate-400">Supplier tracking, purchase dates, & multi-pricing support.</p>
       </div>
 
       <div class="flex items-center gap-2 w-full sm:w-auto">
@@ -80,7 +80,7 @@
 
   <!-- Add / Edit Material Modal -->
   <div id="add-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center p-4 z-50">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative space-y-5">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative space-y-4 max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center border-b border-slate-800 pb-3">
         <h3 id="modal-title" class="text-base font-bold flex items-center gap-2">➕ Add New Stock Item</h3>
         <button id="close-add-modal" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
@@ -88,11 +88,11 @@
       
       <input type="hidden" id="edit-item-id" value="">
 
-      <div class="space-y-4">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div class="space-y-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="text-xs text-slate-300 font-semibold mb-1 block">Category:</label>
-            <select id="mat-category" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
+            <select id="mat-category" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500">
               <option value="Sheet Metal">Sheet Metal</option>
               <option value="Plate">Plate Steel</option>
               <option value="Round Pipe">Round Pipe</option>
@@ -102,17 +102,17 @@
           </div>
           <div>
             <label class="text-xs text-slate-300 font-semibold mb-1 block">Material Name / Grade:</label>
-            <input type="text" id="mat-name" placeholder="e.g. CS .25 5X10 or 2&quot; OD Pipe" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
+            <input type="text" id="mat-name" placeholder="e.g. CS .25 5X10" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500">
           </div>
         </div>
 
         <div>
           <label class="text-xs text-slate-300 font-semibold mb-1 block">Dimensions / Size / Length:</label>
-          <input type="text" id="mat-dimensions" placeholder="e.g. 5x10 ft or 20 ft length" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
+          <input type="text" id="mat-dimensions" placeholder="e.g. 5x10 ft or 20 ft length" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500">
         </div>
 
         <!-- Multiple Pricing Option Selector -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
           <div>
             <label class="text-xs text-blue-400 font-semibold mb-1 block">Pricing Method:</label>
             <select id="pricing-mode" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white text-xs focus:outline-none focus:border-blue-500">
@@ -127,19 +127,31 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="text-xs text-slate-300 font-semibold mb-1 block">Quantity / Stock:</label>
-            <input type="number" id="mat-quantity" placeholder="2" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
+            <input type="number" id="mat-quantity" placeholder="2" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500">
           </div>
           <div>
-            <label class="text-xs text-slate-300 font-semibold mb-1 block">Reserved for Job / Client:</label>
-            <input type="text" id="mat-reserved" placeholder="e.g. Fire Pit Build" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-emerald-500">
+            <label class="text-xs text-slate-300 font-semibold mb-1 block">Reserved for Job:</label>
+            <input type="text" id="mat-reserved" placeholder="e.g. Fire Pit Build" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500">
+          </div>
+        </div>
+
+        <!-- Purchase Tracking Fields -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-slate-800">
+          <div>
+            <label class="text-xs text-slate-300 font-semibold mb-1 block">Purchase Date:</label>
+            <input type="date" id="mat-purchased-date" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="text-xs text-slate-300 font-semibold mb-1 block">Purchased From (Supplier):</label>
+            <input type="text" id="mat-supplier" placeholder="e.g. Metro Steel Supply" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500">
           </div>
         </div>
       </div>
 
-      <button id="save-material-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 py-3.5 rounded-xl font-bold text-sm transition shadow-lg">
+      <button id="save-material-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 py-3 rounded-xl font-bold text-sm transition shadow-lg mt-2">
         Save Material & Auto-Backup
       </button>
     </div>
@@ -204,9 +216,12 @@
       document.getElementById('edit-item-id').value = "";
       document.getElementById('mat-name').value = "";
       document.getElementById('mat-dimensions').value = "";
+      document.getElementById('pricing-mode').value = "unit";
       document.getElementById('mat-price').value = "";
       document.getElementById('mat-quantity').value = "";
       document.getElementById('mat-reserved').value = "";
+      document.getElementById('mat-purchased-date').value = "";
+      document.getElementById('mat-supplier').value = "";
       addModal.classList.remove('hidden');
       addModal.classList.add('flex');
     });
@@ -222,7 +237,6 @@
       }
     });
 
-    // Dynamic pricing mode label adjustment
     document.getElementById('pricing-mode').addEventListener('change', (e) => {
       const mode = e.target.value;
       const label = document.getElementById('price-label');
@@ -293,10 +307,8 @@
         const qty = parseFloat(item.quantity) || 0;
         let unitPrice = parseFloat(item.price) || 0;
 
-        // Resolve pricing mode calculation
         const pricingMode = item.pricingMode || 'unit';
         let effectiveUnit = unitPrice;
-
         const isLinear = category === 'Round Pipe' || category === 'Square Tube' || category === 'Structural' || category === 'Structural / Beams';
 
         if (pricingMode === 'sq') {
@@ -327,6 +339,8 @@
 
         const reservedJob = item.reserved && item.reserved.trim() !== '' ? item.reserved : 'General Stock';
         const isReserved = reservedJob !== 'General Stock';
+        const purchaseDate = item.purchaseDate ? item.purchaseDate : 'Not specified';
+        const supplier = item.supplier && item.supplier.trim() !== '' ? item.supplier : 'Unknown Supplier';
 
         const card = document.createElement('div');
         card.className = "bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4 hover:border-slate-700 transition";
@@ -369,6 +383,18 @@
             <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
               <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">Calculated Rate</span>
               <span class="font-mono text-blue-400 font-semibold">${rateDisplay}</span>
+            </div>
+          </div>
+
+          <!-- Supplier & Purchase Date Info Row -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-950/40 p-2.5 rounded-xl border border-slate-800/80 text-xs">
+            <div>
+              <span class="text-[10px] uppercase text-slate-400 font-semibold block">Supplier</span>
+              <span class="text-slate-200 font-medium">${supplier}</span>
+            </div>
+            <div>
+              <span class="text-[10px] uppercase text-slate-400 font-semibold block">Purchased Date</span>
+              <span class="text-slate-200 font-mono">${purchaseDate}</span>
             </div>
           </div>
 
@@ -415,7 +441,6 @@
         updateQuantity(id, action === 'inc' ? currentQty + 1 : currentQty - 1);
       }
 
-      // Edit Item Trigger
       if (e.target.classList.contains('edit-btn')) {
         const id = e.target.getAttribute('data-id');
         const item = cachedInventoryData[id];
@@ -429,12 +454,13 @@
           document.getElementById('mat-price').value = item.price || '';
           document.getElementById('mat-quantity').value = item.quantity || '1';
           document.getElementById('mat-reserved').value = item.reserved || '';
+          document.getElementById('mat-purchased-date').value = item.purchaseDate || '';
+          document.getElementById('mat-supplier').value = item.supplier || '';
           addModal.classList.remove('hidden');
           addModal.classList.add('flex');
         }
       }
 
-      // Delete Item Trigger
       if (e.target.classList.contains('delete-btn')) {
         const id = e.target.getAttribute('data-id');
         if (confirm("Permanently delete this item from inventory?")) {
@@ -454,7 +480,6 @@
 
     document.getElementById('category-filter').addEventListener('change', () => renderCards(cachedInventoryData));
 
-    // Save / Update Material Action
     document.getElementById('save-material-btn').addEventListener('click', () => {
       const editId = document.getElementById('edit-item-id').value;
       const category = document.getElementById('mat-category').value;
@@ -464,6 +489,8 @@
       const price = document.getElementById('mat-price').value.trim();
       const quantity = document.getElementById('mat-quantity').value.trim();
       const reserved = document.getElementById('mat-reserved').value.trim();
+      const purchaseDate = document.getElementById('mat-purchased-date').value;
+      const supplier = document.getElementById('mat-supplier').value.trim();
 
       if (!name) {
         alert('Please enter a material name.');
@@ -477,17 +504,17 @@
         pricingMode,
         price: price || '0.00',
         quantity: quantity || '1',
-        reserved: reserved || 'General Stock'
+        reserved: reserved || 'General Stock',
+        purchaseDate: purchaseDate || '',
+        supplier: supplier || ''
       };
 
       if (editId) {
-        // Update existing item
         cachedInventoryData[editId] = itemData;
         localStorage.setItem(backupStorageKey, JSON.stringify(cachedInventoryData));
         renderCards(cachedInventoryData);
         update(ref(db, `shops/${currentShopId}/inventory/${editId}`), itemData).catch(() => {});
       } else {
-        // Create new item
         const newRef = push(inventoryRef);
         const newItemId = newRef.key;
         cachedInventoryData[newItemId] = itemData;
