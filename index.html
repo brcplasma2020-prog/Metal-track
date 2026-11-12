@@ -11,6 +11,31 @@
   
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Offline Fallback Styles (Ensures UI stays styled and dark even without internet) -->
+  <style>
+    body { background-color: #030712; color: #f3f4f6; font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; }
+    .bg-slate-950 { background-color: #030712; }
+    .bg-slate-900 { background-color: #0f172a; }
+    .bg-slate-900\/80 { background-color: rgba(15, 23, 42, 0.8); }
+    .bg-slate-950\/60 { background-color: rgba(3, 7, 18, 0.6); }
+    .bg-slate-950\/40 { background-color: rgba(3, 7, 18, 0.4); }
+    .border-slate-800 { border-color: #1e293b; }
+    .text-slate-100 { color: #f3f4f6; }
+    .text-slate-200 { color: #e2e8f0; }
+    .text-slate-300 { color: #cbd5e1; }
+    .text-slate-400 { color: #94a3b8; }
+    .text-emerald-400 { color: #34d399; }
+    .text-blue-400 { color: #60a5fa; }
+    .bg-emerald-600 { background-color: #059669; }
+    .bg-emerald-600:hover { background-color: #047857; }
+    .bg-blue-600 { background-color: #2563eb; }
+    .bg-blue-600:hover { background-color: #1d4ed8; }
+    .bg-slate-800 { background-color: #1e293b; }
+    .rounded-2xl { border-radius: 1rem; }
+    .rounded-xl { border-radius: 0.75.rem; }
+    .shadow-xl { box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.5); }
+  </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
 
