@@ -12,7 +12,7 @@
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Offline Fallback Styles (Ensures UI stays styled and dark even without internet) -->
+  <!-- Offline Fallback Styles -->
   <style>
     body { background-color: #030712; color: #f3f4f6; font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; }
     .bg-slate-950 { background-color: #030712; }
@@ -33,7 +33,7 @@
     .bg-blue-600:hover { background-color: #1d4ed8; }
     .bg-slate-800 { background-color: #1e293b; }
     .rounded-2xl { border-radius: 1rem; }
-    .rounded-xl { border-radius: 0.75.rem; }
+    .rounded-xl { border-radius: 0.75rem; }
     .shadow-xl { box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.5); }
   </style>
 </head>
@@ -75,7 +75,7 @@
     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4">
       <div class="w-full sm:w-auto">
         <h2 class="text-lg font-bold">Material Inventory</h2>
-        <p class="text-xs text-slate-400">Supplier tracking, purchase dates, & multi-pricing support.</p>
+        <p class="text-xs text-slate-400">Local-first persistent storage & offline sync merge.</p>
       </div>
 
       <div class="flex items-center gap-2 w-full sm:w-auto">
@@ -291,18 +291,34 @@
       return lengthVal > 0 ? lengthVal : 1;
     }
 
+    // Load instantly from local storage backup
     let cachedInventoryData = JSON.parse(localStorage.getItem(backupStorageKey)) || {};
     renderCards(cachedInventoryData);
 
+    if (!navigator.onLine) {
+      document.getElementById('network-status').innerText = "Offline (Shop Backup)";
+      document.getElementById('network-dot').className = "w-2 h-2 rounded-full bg-amber-500 inline-block";
+    }
+
     const inventoryRef = ref(db, `shops/${currentShopId}/inventory`);
 
+    // Robust Sync: Merge local offline additions with incoming cloud data rather than wiping them
     onValue(inventoryRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        cachedInventoryData = data;
-        localStorage.setItem(backupStorageKey, JSON.stringify(data));
-        renderCards(cachedInventoryData);
-      }
+      const serverData = snapshot.val() || {};
+      
+      // Merge local items with server data so offline-created items aren't lost
+      cachedInventoryData = { ...serverData, ...cachedInventoryData };
+      
+      // Push any offline-only items up to Firebase now that we are online
+      Object.entries(cachedInventoryData).forEach(([id, item]) => {
+        if (!serverData[id]) {
+          set(ref(db, `shops/${currentShopId}/inventory/${id}`), item).catch(() => {});
+        }
+      });
+
+      localStorage.setItem(backupStorageKey, JSON.stringify(cachedInventoryData));
+      renderCards(cachedInventoryData);
+
       document.getElementById('network-status').innerText = "Ready / Synced";
       document.getElementById('network-dot').className = "w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse";
     }, (error) => {
@@ -540,6 +556,7 @@
         renderCards(cachedInventoryData);
         update(ref(db, `shops/${currentShopId}/inventory/${editId}`), itemData).catch(() => {});
       } else {
+        // Generate a unique push ID locally so offline additions persist safely
         const newRef = push(inventoryRef);
         const newItemId = newRef.key;
         cachedInventoryData[newItemId] = itemData;
