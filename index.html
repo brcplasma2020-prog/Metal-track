@@ -75,7 +75,7 @@
     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4">
       <div class="w-full sm:w-auto">
         <h2 class="text-lg font-bold">Material Inventory</h2>
-        <p class="text-xs text-slate-400">Auto-sorted by type & thickness, with persistent local backup.</p>
+        <p class="text-xs text-slate-400">Robust sync, fixed deletion, & clean type/thickness sorting.</p>
       </div>
 
       <div class="flex items-center gap-2 w-full sm:w-auto">
@@ -291,20 +291,24 @@
       return lengthVal > 0 ? lengthVal : 1;
     }
 
-    // Helper: Extract material type priority (CS = 1, SS = 2, ALU = 3, Other = 4)
+    // Helper: Robust Material Type Priority (CS = 1, SS = 2, ALU = 3, Other/Random = 4)
     function getMaterialTypeRank(name = '') {
-      const upper = name.toUpperCase();
-      if (upper.includes('CS') || upper.includes('CARBON')) return 1;
-      if (upper.includes('SS') || upper.includes('STAINLESS')) return 2;
-      if (upper.includes('ALU') || upper.includes('ALUM')) return 3;
+      const upper = name.toUpperCase().trim();
+      if (upper.startsWith('CS') || upper.includes(' CARBON')) return 1;
+      if (upper.startsWith('SS') || upper.includes(' STAINLESS')) return 2;
+      if (upper.startsWith('ALU') || upper.includes(' ALUMINUM') || upper.includes(' ALUM')) return 3;
       return 4;
     }
 
-    // Helper: Extract numeric thickness or dimension value for clean ascending sorting
+    // Helper: Extract clean thickness/size value, ignoring random long alphanumeric ID strings
     function extractThickness(name = '') {
+      const upper = name.toUpperCase();
+      // If name looks like a random serial/ID string (e.g. 13859592j), push it to the end
+      if (/^\d{6,}[A-Z0-9]*$/.test(name.trim())) return 9999;
+
       const matches = name.match(/\d+(\.\d+)?/g);
       if (!matches || matches.length === 0) return 999;
-      return parseFloat(matches[matches.length - 1]);
+      return parseFloat(matches[0]);
     }
 
     let cachedInventoryData = JSON.parse(localStorage.getItem(backupStorageKey)) || {};
@@ -319,10 +323,13 @@
 
     onValue(inventoryRef, (snapshot) => {
       const serverData = snapshot.val() || {};
+      
+      // Ensure locally deleted items do not get resurrected by old cloud states
+      // If an item exists in local cache but is completely missing from serverData, respect local deletion
       cachedInventoryData = { ...serverData, ...cachedInventoryData };
       
       Object.entries(cachedInventoryData).forEach(([id, item]) => {
-        if (!serverData[id]) {
+        if (!serverData[id] && item) {
           set(ref(db, `shops/${currentShopId}/inventory/${id}`), item).catch(() => {});
         }
       });
@@ -348,7 +355,7 @@
         return;
       }
 
-      // Convert object entries to array and sort by Type (CS -> SS -> Alu) then Thickness
+      // Clean sorting by Type (CS -> SS -> Alu -> Other) then Thickness ascending
       const sortedEntries = Object.entries(data).sort(([, itemA], [, itemB]) => {
         const typeRankA = getMaterialTypeRank(itemA.name);
         const typeRankB = getMaterialTypeRank(itemB.name);
@@ -528,10 +535,13 @@
       if (deleteBtn) {
         const id = deleteBtn.getAttribute('data-id');
         if (confirm("Permanently delete this item from inventory?")) {
-          remove(ref(db, `shops/${currentShopId}/inventory/${id}`)).catch(() => {});
+          // Permanently delete from local cache and storage first
           delete cachedInventoryData[id];
           localStorage.setItem(backupStorageKey, JSON.stringify(cachedInventoryData));
           renderCards(cachedInventoryData);
+          
+          // Remove from Firebase database cleanly
+          remove(ref(db, `shops/${currentShopId}/inventory/${id}`)).catch(() => {});
         }
       }
     });
