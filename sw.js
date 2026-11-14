@@ -1,4 +1,4 @@
-const CACHE_NAME = 'metaltrack-v2';
+const CACHE_NAME = 'metaltrack-v3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -39,7 +39,6 @@ self.addEventListener('fetch', (event) => {
         if (response) {
           return response;
         }
-        // If navigation request fails offline, serve index.html from cache
         if (event.request.mode === 'navigate') {
           return caches.match('./index.html');
         }
