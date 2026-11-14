@@ -75,7 +75,7 @@
     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4">
       <div class="w-full sm:w-auto">
         <h2 class="text-lg font-bold">Material Inventory</h2>
-        <p class="text-xs text-slate-400">Precise gauge & thickness sorting.</p>
+        <p class="text-xs text-slate-400">Precision thickness sorting & offline sync merge.</p>
       </div>
 
       <div class="flex items-center gap-2 w-full sm:w-auto">
@@ -323,7 +323,8 @@
         }
       }
 
-      const numMatches = upper.match(/\d+(\.\d+)?/g);
+      // Fixed decimal matching for numbers starting with dots (e.g. .5)
+      const numMatches = upper.match(/\d*\.\d+|\d+/g);
       if (!numMatches || numMatches.length === 0) return 999;
       
       return parseFloat(numMatches[numMatches.length - 1]);
