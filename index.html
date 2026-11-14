@@ -75,7 +75,7 @@
     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4">
       <div class="w-full sm:w-auto">
         <h2 class="text-lg font-bold">Material Inventory</h2>
-        <p class="text-xs text-slate-400">Precision gauge & decimal thickness sorting.</p>
+        <p class="text-xs text-slate-400">Absolute thickness sorting & offline sync merge.</p>
       </div>
 
       <div class="flex items-center gap-2 w-full sm:w-auto">
@@ -127,13 +127,13 @@
           </div>
           <div>
             <label class="text-xs text-slate-300 font-semibold mb-1 block">Material Name / Grade / Type:</label>
-            <input type="text" id="mat-name" placeholder="e.g. CS .25 or CS 14 GA or SS 10 GA" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500">
+            <input type="text" id="mat-name" placeholder="e.g. CS .5 or CS 10 GA or CS 1" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500">
           </div>
         </div>
 
         <div>
           <label class="text-xs text-slate-300 font-semibold mb-1 block">Dimensions / Size / Length:</label>
-          <input type="text" id="mat-dimensions" placeholder="e.g. 5x10 ft or 20 ft length" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500">
+          <input type="text" id="mat-dimensions" placeholder="e.g. 4x8 ft or 20 ft length" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500">
         </div>
 
         <!-- Multiple Pricing Option Selector -->
@@ -300,30 +300,41 @@
       return 4;
     }
 
-    // Helper: Precision Thickness / Gauge Standardizer for clean ascending sorting
+    // Helper: Convert any thickness notation (GA, fractional inch, decimal inch) into precise absolute inches
     function extractThickness(name = '') {
       const upper = name.toUpperCase().trim();
       if (/^\d{6,}[A-Z0-9]*$/.test(upper)) return 9999;
 
-      // Handle standard Steel Gauge (GA) mapping to actual inch thickness for proper sorting
+      // Check for Gauge (GA)
       if (upper.includes('GA')) {
         const match = upper.match(/(\d+)\s*GA/);
         if (match) {
           const ga = parseInt(match[1]);
-          // Approximate standard steel gauge chart in inches for accurate sorting comparison
           const gaugeTable = {
             7: 0.1793, 8: 0.1644, 9: 0.1495, 10: 0.1345, 11: 0.1196,
             12: 0.1046, 14: 0.0747, 16: 0.0598, 18: 0.0478, 20: 0.0359,
             22: 0.0299, 24: 0.0239, 26: 0.0179
           };
-          if (gaugeTable[ga]) return gaugeTable[ga];
-          return ga * 0.01; // fallback estimation if gauge not in table
+          return gaugeTable[ga] !== undefined ? gaugeTable[ga] : (0.2 - (ga * 0.005));
         }
       }
 
+      // Check for fractional inches like 1/4, 1/2, 3/8
+      if (upper.includes('/')) {
+        const fracMatch = upper.match(/(\d+)\s*\/\s*(\d+)/);
+        if (fracMatch) {
+          const num = parseFloat(fracMatch[1]);
+          const den = parseFloat(fracMatch[2]);
+          if (den > 0) return num / den;
+        }
+      }
+
+      // Extract general numbers (decimals or integers)
       const matches = upper.match(/\d+(\.\d+)?/g);
       if (!matches || matches.length === 0) return 999;
-      return parseFloat(matches[0]);
+      
+      // If there are multiple numbers (e.g. CS 1" or CS .5), grab the size number
+      return parseFloat(matches[matches.length - 1]);
     }
 
     let cachedInventoryData = JSON.parse(localStorage.getItem(backupStorageKey)) || {};
@@ -367,7 +378,7 @@
         return;
       }
 
-      // Sort by Material Type (CS -> SS -> Alu -> Other) then calculated thickness ascending
+      // Sort by Material Type (CS -> SS -> Alu -> Other) then absolute calculated thickness ascending
       const sortedEntries = Object.entries(data).sort(([, itemA], [, itemB]) => {
         const typeRankA = getMaterialTypeRank(itemA.name);
         const typeRankB = getMaterialTypeRank(itemB.name);
