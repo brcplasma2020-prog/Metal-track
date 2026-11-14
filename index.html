@@ -75,7 +75,7 @@
     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4">
       <div class="w-full sm:w-auto">
         <h2 class="text-lg font-bold">Material Inventory</h2>
-        <p class="text-xs text-slate-400">Local-first persistent storage & offline sync merge.</p>
+        <p class="text-xs text-slate-400">Auto-sorted by type & thickness, with persistent local backup.</p>
       </div>
 
       <div class="flex items-center gap-2 w-full sm:w-auto">
@@ -126,8 +126,8 @@
             </select>
           </div>
           <div>
-            <label class="text-xs text-slate-300 font-semibold mb-1 block">Material Name / Grade:</label>
-            <input type="text" id="mat-name" placeholder="e.g. CS .25 5X10" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500">
+            <label class="text-xs text-slate-300 font-semibold mb-1 block">Material Name / Grade / Type:</label>
+            <input type="text" id="mat-name" placeholder="e.g. CS .25 or SS 16 GA or Alu .125" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500">
           </div>
         </div>
 
@@ -291,7 +291,22 @@
       return lengthVal > 0 ? lengthVal : 1;
     }
 
-    // Load instantly from local storage backup
+    // Helper: Extract material type priority (CS = 1, SS = 2, ALU = 3, Other = 4)
+    function getMaterialTypeRank(name = '') {
+      const upper = name.toUpperCase();
+      if (upper.includes('CS') || upper.includes('CARBON')) return 1;
+      if (upper.includes('SS') || upper.includes('STAINLESS')) return 2;
+      if (upper.includes('ALU') || upper.includes('ALUM')) return 3;
+      return 4;
+    }
+
+    // Helper: Extract numeric thickness or dimension value for clean ascending sorting
+    function extractThickness(name = '') {
+      const matches = name.match(/\d+(\.\d+)?/g);
+      if (!matches || matches.length === 0) return 999;
+      return parseFloat(matches[matches.length - 1]);
+    }
+
     let cachedInventoryData = JSON.parse(localStorage.getItem(backupStorageKey)) || {};
     renderCards(cachedInventoryData);
 
@@ -302,14 +317,10 @@
 
     const inventoryRef = ref(db, `shops/${currentShopId}/inventory`);
 
-    // Robust Sync: Merge local offline additions with incoming cloud data rather than wiping them
     onValue(inventoryRef, (snapshot) => {
       const serverData = snapshot.val() || {};
-      
-      // Merge local items with server data so offline-created items aren't lost
       cachedInventoryData = { ...serverData, ...cachedInventoryData };
       
-      // Push any offline-only items up to Firebase now that we are online
       Object.entries(cachedInventoryData).forEach(([id, item]) => {
         if (!serverData[id]) {
           set(ref(db, `shops/${currentShopId}/inventory/${id}`), item).catch(() => {});
@@ -337,10 +348,21 @@
         return;
       }
 
+      // Convert object entries to array and sort by Type (CS -> SS -> Alu) then Thickness
+      const sortedEntries = Object.entries(data).sort(([, itemA], [, itemB]) => {
+        const typeRankA = getMaterialTypeRank(itemA.name);
+        const typeRankB = getMaterialTypeRank(itemB.name);
+        if (typeRankA !== typeRankB) return typeRankA - typeRankB;
+
+        const thickA = extractThickness(itemA.name);
+        const thickB = extractThickness(itemB.name);
+        return thickA - thickB;
+      });
+
       let grandTotal = 0;
       let count = 0;
 
-      Object.entries(data).forEach(([id, item]) => {
+      sortedEntries.forEach(([id, item]) => {
         const category = item.category || 'Sheet Metal';
         if (selectedCategory !== 'ALL' && category !== selectedCategory) return;
 
@@ -427,7 +449,6 @@
             </div>
           </div>
 
-          <!-- Supplier & Purchase Date Info Row -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-950/40 p-2.5 rounded-xl border border-slate-800/80 text-xs">
             <div>
               <span class="text-[10px] uppercase text-slate-400 font-semibold block">Supplier</span>
@@ -482,8 +503,9 @@
         updateQuantity(id, action === 'inc' ? currentQty + 1 : currentQty - 1);
       }
 
-      if (e.target.classList.contains('edit-btn')) {
-        const id = e.target.getAttribute('data-id');
+      const editBtn = e.target.closest('.edit-btn');
+      if (editBtn) {
+        const id = editBtn.getAttribute('data-id');
         const item = cachedInventoryData[id];
         if (item) {
           document.getElementById('modal-title').innerText = "✏️ Edit Stock Item";
@@ -502,10 +524,11 @@
         }
       }
 
-      if (e.target.classList.contains('delete-btn')) {
-        const id = e.target.getAttribute('data-id');
+      const deleteBtn = e.target.closest('.delete-btn');
+      if (deleteBtn) {
+        const id = deleteBtn.getAttribute('data-id');
         if (confirm("Permanently delete this item from inventory?")) {
-          remove(ref(db, `shops/${currentShopId}/inventory/${id}`));
+          remove(ref(db, `shops/${currentShopId}/inventory/${id}`)).catch(() => {});
           delete cachedInventoryData[id];
           localStorage.setItem(backupStorageKey, JSON.stringify(cachedInventoryData));
           renderCards(cachedInventoryData);
@@ -556,7 +579,6 @@
         renderCards(cachedInventoryData);
         update(ref(db, `shops/${currentShopId}/inventory/${editId}`), itemData).catch(() => {});
       } else {
-        // Generate a unique push ID locally so offline additions persist safely
         const newRef = push(inventoryRef);
         const newItemId = newRef.key;
         cachedInventoryData[newItemId] = itemData;
