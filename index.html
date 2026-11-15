@@ -75,7 +75,7 @@
     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4">
       <div class="w-full sm:w-auto">
         <h2 class="text-lg font-bold">Material Inventory</h2>
-        <p class="text-xs text-slate-400">Precision thickness sorting & offline sync merge.</p>
+        <p class="text-xs text-slate-400">Categorized sorting & offline-first sync.</p>
       </div>
 
       <div class="flex items-center gap-2 w-full sm:w-auto">
@@ -127,7 +127,7 @@
           </div>
           <div>
             <label class="text-xs text-slate-300 font-semibold mb-1 block">Material Name / Grade / Type:</label>
-            <input type="text" id="mat-name" placeholder="e.g. CS .5 or CS 10 GA or CS 1&quot;" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500">
+            <input type="text" id="mat-name" placeholder="e.g. CS .5 or CS 3X3 .25" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500">
           </div>
         </div>
 
@@ -159,7 +159,7 @@
           </div>
           <div>
             <label class="text-xs text-slate-300 font-semibold mb-1 block">Reserved for Job:</label>
-            <input type="text" id="mat-reserved" placeholder="e.g. Fire Pit Build" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500">
+            <input type="text" id="mat-reserved" placeholder="e.g. Wire roller" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500">
           </div>
         </div>
 
@@ -171,7 +171,7 @@
           </div>
           <div>
             <label class="text-xs text-slate-300 font-semibold mb-1 block">Purchased From (Supplier):</label>
-            <input type="text" id="mat-supplier" placeholder="e.g. Metro Steel Supply" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500">
+            <input type="text" id="mat-supplier" placeholder="e.g. Value steel" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500">
           </div>
         </div>
       </div>
@@ -323,7 +323,6 @@
         }
       }
 
-      // Fixed decimal matching for numbers starting with dots (e.g. .5)
       const numMatches = upper.match(/\d*\.\d+|\d+/g);
       if (!numMatches || numMatches.length === 0) return 999;
       
@@ -371,7 +370,12 @@
         return;
       }
 
+      // Multi-tier Sorting: Category -> Material Type (CS/SS/Alu) -> Thickness
       const sortedEntries = Object.entries(data).sort(([, itemA], [, itemB]) => {
+        const catA = itemA.category || 'Sheet Metal';
+        const catB = itemB.category || 'Sheet Metal';
+        if (catA !== catB) return catA.localeCompare(catB);
+
         const typeRankA = getMaterialTypeRank(itemA.name);
         const typeRankB = getMaterialTypeRank(itemB.name);
         if (typeRankA !== typeRankB) return typeRankA - typeRankB;
