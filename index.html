@@ -75,7 +75,7 @@
     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4">
       <div class="w-full sm:w-auto">
         <h2 class="text-lg font-bold">Material Inventory</h2>
-        <p class="text-xs text-slate-400">Categorized sorting & offline-first sync.</p>
+        <p class="text-xs text-slate-400">Hierarchical tree grouping & photo attachments.</p>
       </div>
 
       <div class="flex items-center gap-2 w-full sm:w-auto">
@@ -95,8 +95,8 @@
       </div>
     </div>
 
-    <!-- Vertical Cards List Container -->
-    <div id="inventory-list" class="space-y-4">
+    <!-- Hierarchical Tree Inventory List Container -->
+    <div id="inventory-list" class="space-y-6">
       <div class="p-8 text-center text-slate-500 bg-slate-900 rounded-2xl border border-slate-800">
         Loading inventory from local shop storage...
       </div>
@@ -116,7 +116,7 @@
       <div class="space-y-3">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label class="text-xs text-slate-300 font-semibold mb-1 block">Category:</label>
+            <label class="text-xs text-slate-300 font-semibold mb-1 block">Profile Type (Category):</label>
             <select id="mat-category" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500">
               <option value="Sheet Metal">Sheet Metal</option>
               <option value="Plate">Plate Steel</option>
@@ -127,7 +127,7 @@
           </div>
           <div>
             <label class="text-xs text-slate-300 font-semibold mb-1 block">Material Name / Grade / Type:</label>
-            <input type="text" id="mat-name" placeholder="e.g. CS .5 or CS 3X3 .25" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500">
+            <input type="text" id="mat-name" placeholder="e.g. CS .5 or CS 10 GA" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500">
           </div>
         </div>
 
@@ -174,6 +174,13 @@
             <input type="text" id="mat-supplier" placeholder="e.g. Value steel" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500">
           </div>
         </div>
+
+        <!-- Photo Attachments Input -->
+        <div class="pt-1 border-t border-slate-800">
+          <label class="text-xs text-slate-300 font-semibold mb-1 block">Material Photos (Max 2):</label>
+          <input type="file" id="mat-photo-input" accept="image/*" multiple class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white text-xs file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer">
+          <div id="modal-photo-previews" class="flex gap-2 mt-2 flex-wrap"></div>
+        </div>
       </div>
 
       <button id="save-material-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 py-3 rounded-xl font-bold text-sm transition shadow-lg mt-2">
@@ -206,6 +213,14 @@
     </div>
   </div>
 
+  <!-- Image Lightbox Modal Preview -->
+  <div id="lightbox-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md hidden items-center justify-center p-4 z-50">
+    <div class="relative max-w-3xl w-full flex flex-col items-center">
+      <button id="close-lightbox" class="absolute -top-10 right-0 text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
+      <img id="lightbox-img" src="" alt="Enlarged view" class="max-h-[80vh] max-w-full rounded-xl border border-slate-800 shadow-2xl object-contain">
+    </div>
+  </div>
+
   <!-- Firebase & App Script Logic -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -230,6 +245,8 @@
     document.getElementById('modal-current-id').innerText = currentShopId;
 
     const backupStorageKey = `metaltrack_backup_${currentShopId}`;
+    const expandedIds = new Set();
+    let currentModalPhotos = []; // Holds base64 strings for current item being added/edited
 
     const syncModal = document.getElementById('sync-modal');
     document.getElementById('open-sync-modal').addEventListener('click', () => syncModal.classList.remove('hidden') || syncModal.classList.add('flex'));
@@ -247,10 +264,19 @@
       document.getElementById('mat-reserved').value = "";
       document.getElementById('mat-purchased-date').value = "";
       document.getElementById('mat-supplier').value = "";
+      document.getElementById('mat-photo-input').value = "";
+      currentModalPhotos = [];
+      renderModalPhotoPreviews();
       addModal.classList.remove('hidden');
       addModal.classList.add('flex');
     });
     document.getElementById('close-add-modal').addEventListener('click', () => addModal.classList.add('hidden'));
+
+    // Lightbox modal handlers
+    const lightboxModal = document.getElementById('lightbox-modal');
+    const lightboxImg = document.getElementById('lightbox-img');
+    document.getElementById('close-lightbox').addEventListener('click', () => lightboxModal.classList.add('hidden'));
+    lightboxModal.addEventListener('click', (e) => { if(e.target === lightboxModal) lightboxModal.classList.add('hidden'); });
 
     document.getElementById('connect-channel-btn').addEventListener('click', () => {
       const inputVal = document.getElementById('target-shop-input').value.trim().toUpperCase();
@@ -268,6 +294,80 @@
       if (mode === 'sq') label.innerText = "Price per Area/Length ($):";
       else if (mode === 'total') label.innerText = "Total Batch Price ($):";
       else label.innerText = "Price per Unit ($):";
+    });
+
+    // Compress & convert selected files to base64
+    document.getElementById('mat-photo-input').addEventListener('change', async (e) => {
+      const files = Array.from(e.target.files);
+      if (currentModalPhotos.length + files.length > 2) {
+        alert('You can attach a maximum of 2 photos per material.');
+        return;
+      }
+
+      for (const file of files) {
+        if (currentModalPhotos.length < 2) {
+          const base64 = await resizeAndCompressImage(file);
+          currentModalPhotos.push(base64);
+        }
+      }
+      renderModalPhotoPreviews();
+      e.target.value = ''; // reset input
+    });
+
+    function resizeAndCompressImage(file) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            const maxDim = 600; // max dimension to keep data size tiny for local & cloud storage
+            if (width > height && width > maxDim) {
+              height *= maxDim / width;
+              width = maxDim;
+            } else if (height > maxDim) {
+              width *= maxDim / height;
+              height = maxDim;
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.7));
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function renderModalPhotoPreviews() {
+      const container = document.getElementById('modal-photo-previews');
+      container.innerHTML = '';
+      currentModalPhotos.forEach((photoSrc, idx) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = "relative w-16 h-16 rounded-lg overflow-hidden border border-slate-700 bg-slate-950";
+        wrapper.innerHTML = `
+          <img src="${photoSrc}" class="w-full h-full object-cover">
+          <button type="button" data-index="${idx}" class="remove-modal-photo absolute top-0 right-0 bg-red-600 hover:bg-red-500 text-white w-5 h-5 flex items-center justify-center text-xs font-bold">&times;</button>
+        `;
+        container.appendChild(wrapper);
+      });
+    }
+
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('remove-modal-photo')) {
+        const idx = parseInt(e.target.getAttribute('data-index'));
+        currentModalPhotos.splice(idx, 1);
+        renderModalPhotoPreviews();
+      }
+      if (e.target.classList.contains('zoom-photo')) {
+        lightboxImg.src = e.target.src;
+        lightboxModal.classList.remove('hidden');
+        lightboxModal.classList.add('flex');
+      }
     });
 
     function calculateAreaInSqMeters(dimStr) {
@@ -291,12 +391,12 @@
       return lengthVal > 0 ? lengthVal : 1;
     }
 
-    function getMaterialTypeRank(name = '') {
+    function getMaterialTypeInfo(name = '') {
       const upper = name.toUpperCase().trim();
-      if (upper.startsWith('CS') || upper.includes(' CARBON')) return 1;
-      if (upper.startsWith('SS') || upper.includes(' STAINLESS')) return 2;
-      if (upper.startsWith('ALU') || upper.includes(' ALUMINUM') || upper.includes(' ALUM')) return 3;
-      return 4;
+      if (upper.startsWith('CS') || upper.includes(' CARBON')) return { label: 'Carbon Steel (CS)', rank: 1 };
+      if (upper.startsWith('SS') || upper.includes(' STAINLESS')) return { label: 'Stainless Steel (SS)', rank: 2 };
+      if (upper.startsWith('ALU') || upper.includes(' ALUMINUM') || upper.includes(' ALUM')) return { label: 'Aluminum (ALU)', rank: 3 };
+      return { label: 'Other Materials', rank: 4 };
     }
 
     function extractThickness(name = '') {
@@ -325,7 +425,6 @@
 
       const numMatches = upper.match(/\d*\.\d+|\d+/g);
       if (!numMatches || numMatches.length === 0) return 999;
-      
       return parseFloat(numMatches[numMatches.length - 1]);
     }
 
@@ -370,142 +469,212 @@
         return;
       }
 
-      // Multi-tier Sorting: Category -> Material Type (CS/SS/Alu) -> Thickness
-      const sortedEntries = Object.entries(data).sort(([, itemA], [, itemB]) => {
-        const catA = itemA.category || 'Sheet Metal';
-        const catB = itemB.category || 'Sheet Metal';
-        if (catA !== catB) return catA.localeCompare(catB);
-
-        const typeRankA = getMaterialTypeRank(itemA.name);
-        const typeRankB = getMaterialTypeRank(itemB.name);
-        if (typeRankA !== typeRankB) return typeRankA - typeRankB;
-
-        const thickA = extractThickness(itemA.name);
-        const thickB = extractThickness(itemB.name);
-        return thickA - thickB;
-      });
-
+      const tree = {};
       let grandTotal = 0;
       let count = 0;
 
-      sortedEntries.forEach(([id, item]) => {
+      Object.entries(data).forEach(([id, item]) => {
         const category = item.category || 'Sheet Metal';
         if (selectedCategory !== 'ALL' && category !== selectedCategory) return;
 
         count++;
-        const qty = parseFloat(item.quantity) || 0;
-        let unitPrice = parseFloat(item.price) || 0;
+        const matInfo = getMaterialTypeInfo(item.name);
+        const thickness = extractThickness(item.name);
 
-        const pricingMode = item.pricingMode || 'unit';
-        let effectiveUnit = unitPrice;
-        const isLinear = category === 'Round Pipe' || category === 'Square Tube' || category === 'Structural' || category === 'Structural / Beams';
-
-        if (pricingMode === 'sq') {
-          if (isLinear) {
-            const ft = extractLengthInFeet(item.dimensions);
-            effectiveUnit = unitPrice * ft;
-          } else {
-            const m2 = calculateAreaInSqMeters(item.dimensions);
-            effectiveUnit = unitPrice * m2;
-          }
-        } else if (pricingMode === 'total') {
-          effectiveUnit = qty > 0 ? (unitPrice / qty) : 0;
+        if (!tree[category]) tree[category] = {};
+        if (!tree[category][matInfo.label]) {
+          tree[category][matInfo.label] = { rank: matInfo.rank, items: [] };
         }
 
-        const lineTotal = effectiveUnit * qty;
-        grandTotal += lineTotal;
-
-        let rateDisplay = '';
-        if (isLinear) {
-          const totalFeet = extractLengthInFeet(item.dimensions);
-          const pFt = totalFeet > 0 ? (effectiveUnit / totalFeet).toFixed(2) : 'N/A';
-          rateDisplay = pFt !== 'N/A' ? `$${pFt}/ft` : 'N/A';
-        } else {
-          const sqMeters = calculateAreaInSqMeters(item.dimensions);
-          const pSqM = sqMeters > 0 ? (effectiveUnit / sqMeters).toFixed(2) : 'N/A';
-          rateDisplay = pSqM !== 'N/A' ? `$${pSqM}/m²` : 'N/A';
-        }
-
-        const reservedJob = item.reserved && item.reserved.trim() !== '' ? item.reserved : 'General Stock';
-        const isReserved = reservedJob !== 'General Stock';
-        const purchaseDate = item.purchaseDate ? item.purchaseDate : 'Not specified';
-        const supplier = item.supplier && item.supplier.trim() !== '' ? item.supplier : 'Unknown Supplier';
-
-        const card = document.createElement('div');
-        card.className = "bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4 hover:border-slate-700 transition";
-        card.innerHTML = `
-          <div class="flex justify-between items-start gap-2 border-b border-slate-800 pb-3">
-            <div>
-              <span class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs font-medium border border-slate-700/50 inline-block mb-1.5">${category}</span>
-              <h3 class="text-base font-bold text-white tracking-wide">${item.name || 'Unnamed Material'}</h3>
-            </div>
-            <div class="flex items-center gap-2">
-              <button data-id="${id}" class="edit-btn text-blue-400 hover:text-blue-300 text-xs px-3 py-1.5 bg-blue-950/50 hover:bg-blue-900/60 rounded-xl border border-blue-900/50 transition">
-                Edit
-              </button>
-              <button data-id="${id}" class="delete-btn text-red-400 hover:text-red-300 text-xs px-3 py-1.5 bg-red-950/50 hover:bg-red-900/60 rounded-xl border border-red-900/50 transition">
-                Delete
-              </button>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-            <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
-              <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">Dimensions</span>
-              <span class="font-mono text-slate-200">${item.dimensions || 'N/A'}</span>
-            </div>
-            
-            <div class="bg-slate-950/60 p-2.5 rounded-xl border border-blue-900/40">
-              <span class="text-[10px] uppercase text-blue-400 font-semibold block mb-1">Quantity</span>
-              <div class="flex items-center gap-1">
-                <button data-id="${id}" data-action="dec" class="qty-btn bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold w-6 h-6 rounded-md flex items-center justify-center text-xs transition border border-slate-700">-</button>
-                <input type="number" data-id="${id}" value="${qty}" class="qty-input w-12 bg-slate-900 border border-slate-700 rounded-md text-center text-xs font-mono text-white font-bold py-0.5 focus:outline-none focus:border-blue-500">
-                <button data-id="${id}" data-action="inc" class="qty-btn bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold w-6 h-6 rounded-md flex items-center justify-center text-xs transition border border-slate-700">+</button>
-              </div>
-            </div>
-
-            <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
-              <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">Unit Price</span>
-              <span class="font-mono text-slate-200">$${effectiveUnit.toFixed(2)}</span>
-            </div>
-
-            <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
-              <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">Calculated Rate</span>
-              <span class="font-mono text-blue-400 font-semibold">${rateDisplay}</span>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-950/40 p-2.5 rounded-xl border border-slate-800/80 text-xs">
-            <div>
-              <span class="text-[10px] uppercase text-slate-400 font-semibold block">Supplier</span>
-              <span class="text-slate-200 font-medium">${supplier}</span>
-            </div>
-            <div>
-              <span class="text-[10px] uppercase text-slate-400 font-semibold block">Purchased Date</span>
-              <span class="text-slate-200 font-mono">${purchaseDate}</span>
-            </div>
-          </div>
-
-          <div class="flex justify-between items-center pt-1 border-t border-slate-800/60 text-xs">
-            <div class="flex items-center gap-1.5">
-              <span class="text-slate-400 font-medium">Reserved:</span>
-              <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold ${isReserved ? 'bg-amber-950/60 text-amber-300 border border-amber-800/60' : 'bg-slate-800 text-slate-400'}">
-                ${reservedJob}
-              </span>
-            </div>
-            
-            <div class="text-right">
-              <span class="text-[10px] uppercase text-slate-400 font-semibold block">Total Cost</span>
-              <span class="text-emerald-400 font-mono font-bold text-sm">$${lineTotal.toFixed(2)}</span>
-            </div>
-          </div>
-        `;
-        container.appendChild(card);
+        tree[category][matInfo.label].items.push({ id, item, thickness });
       });
 
       if (count === 0) {
         container.innerHTML = `<div class="p-8 text-center text-slate-500 bg-slate-900 rounded-2xl border border-slate-800">No items match the selected category filter.</div>`;
+        document.getElementById('total-inventory-value').innerText = "$0.00";
+        return;
       }
+
+      Object.entries(tree).sort().forEach(([category, matTypes]) => {
+        const categoryWrapper = document.createElement('div');
+        categoryWrapper.className = "space-y-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80";
+        
+        categoryWrapper.innerHTML = `
+          <div class="flex items-center gap-2 border-b border-slate-800 pb-2">
+            <span class="text-blue-400 font-bold text-sm tracking-wider uppercase">📁 Profile: ${category}</span>
+          </div>
+        `;
+
+        const matContainer = document.createElement('div');
+        matContainer.className = "space-y-3 pl-2 sm:pl-4";
+
+        const sortedMatTypes = Object.entries(matTypes).sort(([, a], [, b]) => a.rank - b.rank);
+
+        sortedMatTypes.forEach(([matTypeLabel, group]) => {
+          const subGroup = document.createElement('div');
+          subGroup.className = "space-y-2";
+          
+          subGroup.innerHTML = `<div class="text-xs font-semibold text-slate-400 uppercase tracking-wider pt-1">🔸 ${matTypeLabel}</div>`;
+
+          group.items.sort((a, b) => a.thickness - b.thickness);
+
+          const itemsList = document.createElement('div');
+          itemsList.className = "space-y-2";
+
+          group.items.forEach(({ id, item }) => {
+            const qty = parseFloat(item.quantity) || 0;
+            let unitPrice = parseFloat(item.price) || 0;
+            const pricingMode = item.pricingMode || 'unit';
+            let effectiveUnit = unitPrice;
+            const isLinear = category === 'Round Pipe' || category === 'Square Tube' || category === 'Structural' || category === 'Structural / Beams';
+
+            if (pricingMode === 'sq') {
+              if (isLinear) {
+                const ft = extractLengthInFeet(item.dimensions);
+                effectiveUnit = unitPrice * ft;
+              } else {
+                const m2 = calculateAreaInSqMeters(item.dimensions);
+                effectiveUnit = unitPrice * m2;
+              }
+            } else if (pricingMode === 'total') {
+              effectiveUnit = qty > 0 ? (unitPrice / qty) : 0;
+            }
+
+            const lineTotal = effectiveUnit * qty;
+            grandTotal += lineTotal;
+
+            let rateDisplay = '';
+            if (isLinear) {
+              const totalFeet = extractLengthInFeet(item.dimensions);
+              const pFt = totalFeet > 0 ? (effectiveUnit / totalFeet).toFixed(2) : 'N/A';
+              rateDisplay = pFt !== 'N/A' ? `$${pFt}/ft` : 'N/A';
+            } else {
+              const sqMeters = calculateAreaInSqMeters(item.dimensions);
+              const pSqM = sqMeters > 0 ? (effectiveUnit / sqMeters).toFixed(2) : 'N/A';
+              rateDisplay = pSqM !== 'N/A' ? `$${pSqM}/m²` : 'N/A';
+            }
+
+            const reservedJob = item.reserved && item.reserved.trim() !== '' ? item.reserved : 'General Stock';
+            const isReserved = reservedJob !== 'General Stock';
+            const purchaseDate = item.purchaseDate ? item.purchaseDate : 'Not specified';
+            const supplier = item.supplier && item.supplier.trim() !== '' ? item.supplier : 'Unknown Supplier';
+            const photos = item.photos || [];
+
+            const isExpanded = expandedIds.has(id);
+
+            const card = document.createElement('div');
+            card.className = "material-row bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow transition hover:border-slate-700";
+            
+            // Collapsed Header View
+            let cardHtml = `
+              <div data-id="${id}" class="expand-toggle p-3 sm:p-4 flex justify-between items-center cursor-pointer bg-slate-900/90 hover:bg-slate-800/70 transition">
+                <div class="flex items-center gap-3">
+                  <span class="text-slate-500 text-xs">${isExpanded ? '▼' : '▶'}</span>
+                  ${photos.length > 0 ? `<img src="${photos[0]}" class="w-7 h-7 rounded object-cover border border-slate-700">` : ''}
+                  <span class="font-bold text-sm text-white">${item.name || 'Unnamed Material'}</span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <span class="text-xs font-mono text-blue-400 font-semibold">${rateDisplay}</span>
+                  <span class="text-xs text-slate-400 font-mono">Qty: ${qty}</span>
+                </div>
+              </div>
+            `;
+
+            // Expanded Full Details View
+            if (isExpanded) {
+              let photoThumbnailsHtml = '';
+              if (photos.length > 0) {
+                photoThumbnailsHtml = `
+                  <div class="flex gap-2 pt-2 border-t border-slate-800/80">
+                    ${photos.map(p => `<img src="${p}" class="zoom-photo w-16 h-16 rounded-xl object-cover border border-slate-700 cursor-pointer hover:opacity-80 transition" title="Click to enlarge">`).join('')}
+                  </div>
+                `;
+              }
+
+              cardHtml += `
+                <div class="p-4 border-t border-slate-800 bg-slate-950/50 space-y-4">
+                  <div class="flex justify-between items-start gap-2 border-b border-slate-800 pb-3">
+                    <div>
+                      <span class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs font-medium border border-slate-700/50 inline-block mb-1.5">${category}</span>
+                      <h4 class="text-sm font-bold text-white">${item.name || 'Unnamed Material'}</h4>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <button data-id="${id}" class="edit-btn text-blue-400 hover:text-blue-300 text-xs px-3 py-1.5 bg-blue-950/50 hover:bg-blue-900/60 rounded-xl border border-blue-900/50 transition">
+                        Edit
+                      </button>
+                      <button data-id="${id}" class="delete-btn text-red-400 hover:text-red-300 text-xs px-3 py-1.5 bg-red-950/50 hover:bg-red-900/60 rounded-xl border border-red-900/50 transition">
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+
+                  ${photoThumbnailsHtml}
+
+                  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                    <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
+                      <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">Dimensions</span>
+                      <span class="font-mono text-slate-200">${item.dimensions || 'N/A'}</span>
+                    </div>
+                    
+                    <div class="bg-slate-950/60 p-2.5 rounded-xl border border-blue-900/40">
+                      <span class="text-[10px] uppercase text-blue-400 font-semibold block mb-1">Quantity</span>
+                      <div class="flex items-center gap-1">
+                        <button data-id="${id}" data-action="dec" class="qty-btn bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold w-6 h-6 rounded-md flex items-center justify-center text-xs transition border border-slate-700">-</button>
+                        <input type="number" data-id="${id}" value="${qty}" class="qty-input w-12 bg-slate-900 border border-slate-700 rounded-md text-center text-xs font-mono text-white font-bold py-0.5 focus:outline-none focus:border-blue-500">
+                        <button data-id="${id}" data-action="inc" class="qty-btn bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold w-6 h-6 rounded-md flex items-center justify-center text-xs transition border border-slate-700">+</button>
+                      </div>
+                    </div>
+
+                    <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
+                      <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">Unit Price</span>
+                      <span class="font-mono text-slate-200">$${effectiveUnit.toFixed(2)}</span>
+                    </div>
+
+                    <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
+                      <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">Calculated Rate</span>
+                      <span class="font-mono text-blue-400 font-semibold">${rateDisplay}</span>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-950/40 p-2.5 rounded-xl border border-slate-800/80 text-xs">
+                    <div>
+                      <span class="text-[10px] uppercase text-slate-400 font-semibold block">Supplier</span>
+                      <span class="text-slate-200 font-medium">${supplier}</span>
+                    </div>
+                    <div>
+                      <span class="text-[10px] uppercase text-slate-400 font-semibold block">Purchased Date</span>
+                      <span class="text-slate-200 font-mono">${purchaseDate}</span>
+                    </div>
+                  </div>
+
+                  <div class="flex justify-between items-center pt-1 border-t border-slate-800/60 text-xs">
+                    <div class="flex items-center gap-1.5">
+                      <span class="text-slate-400 font-medium">Reserved:</span>
+                      <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold ${isReserved ? 'bg-amber-950/60 text-amber-300 border border-amber-800/60' : 'bg-slate-800 text-slate-400'}">
+                        ${reservedJob}
+                      </span>
+                    </div>
+                    
+                    <div class="text-right">
+                      <span class="text-[10px] uppercase text-slate-400 font-semibold block">Total Cost</span>
+                      <span class="text-emerald-400 font-mono font-bold text-sm">$${lineTotal.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              `;
+            }
+
+            card.innerHTML = cardHtml;
+            itemsList.appendChild(card);
+          });
+
+          subGroup.appendChild(itemsList);
+          matContainer.appendChild(subGroup);
+        });
+
+        categoryWrapper.appendChild(matContainer);
+        container.appendChild(categoryWrapper);
+      });
 
       document.getElementById('total-inventory-value').innerText = `$${grandTotal.toFixed(2)}`;
     }
@@ -521,6 +690,18 @@
     }
 
     document.addEventListener('click', (e) => {
+      const toggleRow = e.target.closest('.expand-toggle');
+      if (toggleRow && !e.target.closest('button') && !e.target.closest('input')) {
+        const id = toggleRow.getAttribute('data-id');
+        if (expandedIds.has(id)) {
+          expandedIds.delete(id);
+        } else {
+          expandedIds.add(id);
+        }
+        renderCards(cachedInventoryData);
+        return;
+      }
+
       const qtyBtn = e.target.closest('.qty-btn');
       if (qtyBtn) {
         const id = qtyBtn.getAttribute('data-id');
@@ -545,6 +726,10 @@
           document.getElementById('mat-reserved').value = item.reserved || '';
           document.getElementById('mat-purchased-date').value = item.purchaseDate || '';
           document.getElementById('mat-supplier').value = item.supplier || '';
+          
+          currentModalPhotos = item.photos ? [...item.photos] : [];
+          renderModalPhotoPreviews();
+
           addModal.classList.remove('hidden');
           addModal.classList.add('flex');
         }
@@ -555,6 +740,7 @@
         const id = deleteBtn.getAttribute('data-id');
         if (confirm("Permanently delete this item from inventory?")) {
           delete cachedInventoryData[id];
+          expandedIds.delete(id);
           localStorage.setItem(backupStorageKey, JSON.stringify(cachedInventoryData));
           renderCards(cachedInventoryData);
           remove(ref(db, `shops/${currentShopId}/inventory/${id}`)).catch(() => {});
@@ -596,7 +782,8 @@
         quantity: quantity || '1',
         reserved: reserved || 'General Stock',
         purchaseDate: purchaseDate || '',
-        supplier: supplier || ''
+        supplier: supplier || '',
+        photos: currentModalPhotos
       };
 
       if (editId) {
