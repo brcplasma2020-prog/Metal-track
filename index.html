@@ -70,37 +70,72 @@
 
   <!-- Main Content Area -->
   <main class="flex-1 max-w-4xl w-full mx-auto p-4 space-y-6">
-    
-    <!-- Action Control Deck -->
-    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4">
-      <div class="w-full sm:w-auto">
-        <h2 class="text-lg font-bold">Material Inventory</h2>
-        <p class="text-xs text-slate-400">Hierarchical tree grouping & photo attachments.</p>
+
+    <!-- Top-Level View Switcher Tabs -->
+    <div class="grid grid-cols-2 gap-2 bg-slate-900 p-1.5 rounded-2xl border border-slate-800 shadow-lg">
+      <button id="tab-inventory-btn" class="py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition bg-blue-600 text-white shadow">
+        📦 Inventory
+      </button>
+      <button id="tab-reorder-btn" class="py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition text-slate-400 hover:text-white flex items-center justify-center gap-2">
+        <span>🛒 Reorder</span>
+        <span id="reorder-count-badge" class="px-2 py-0.5 text-[11px] font-mono rounded-full bg-amber-950/80 text-amber-300 border border-amber-700/60">0</span>
+      </button>
+    </div>
+
+    <!-- INVENTORY VIEW -->
+    <div id="inventory-view" class="space-y-6">
+      <!-- Action Control Deck -->
+      <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div class="w-full sm:w-auto">
+          <h2 class="text-lg font-bold">Material Inventory</h2>
+          <p class="text-xs text-slate-400">Hierarchical tree grouping & photo attachments.</p>
+        </div>
+
+        <div class="flex items-center gap-2 w-full sm:w-auto">
+          <!-- Category Filter Tabs -->
+          <select id="category-filter" class="flex-1 sm:flex-none bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 font-medium focus:outline-none focus:border-blue-500">
+            <option value="ALL">All Categories</option>
+            <option value="Sheet Metal">Sheet Metal</option>
+            <option value="Plate">Plate Steel</option>
+            <option value="Round Pipe">Round Pipe</option>
+            <option value="Square Tube">Square Tubing</option>
+            <option value="Structural">Structural / Beams</option>
+          </select>
+
+          <button id="open-add-modal" class="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition shadow-lg flex items-center gap-1">
+            <span>➕</span> Add Material
+          </button>
+        </div>
       </div>
 
-      <div class="flex items-center gap-2 w-full sm:w-auto">
-        <!-- Category Filter Tabs -->
-        <select id="category-filter" class="flex-1 sm:flex-none bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 font-medium focus:outline-none focus:border-blue-500">
-          <option value="ALL">All Categories</option>
-          <option value="Sheet Metal">Sheet Metal</option>
-          <option value="Plate">Plate Steel</option>
-          <option value="Round Pipe">Round Pipe</option>
-          <option value="Square Tube">Square Tubing</option>
-          <option value="Structural">Structural / Beams</option>
-        </select>
-
-        <button id="open-add-modal" class="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition shadow-lg flex items-center gap-1">
-          <span>➕</span> Add Material
-        </button>
+      <!-- Hierarchical Tree Inventory List Container -->
+      <div id="inventory-list" class="space-y-4">
+        <div class="p-8 text-center text-slate-500 bg-slate-900 rounded-2xl border border-slate-800">
+          Loading inventory from local shop storage...
+        </div>
       </div>
     </div>
 
-    <!-- Hierarchical Tree Inventory List Container -->
-    <div id="inventory-list" class="space-y-4">
-      <div class="p-8 text-center text-slate-500 bg-slate-900 rounded-2xl border border-slate-800">
-        Loading inventory from local shop storage...
+    <!-- REORDER VIEW -->
+    <div id="reorder-view" class="hidden space-y-4">
+      <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div>
+          <h2 class="text-lg font-bold flex items-center gap-2">🛒 Reorder List</h2>
+          <p class="text-xs text-slate-400">Items flagged for restock under <span id="reorder-shop-label" class="font-mono text-blue-400">MS-336E</span>.</p>
+        </div>
+        <div class="flex items-center gap-3 bg-slate-950/70 px-3.5 py-2 rounded-xl border border-slate-800">
+          <span class="text-[11px] uppercase text-slate-400 font-semibold">Est. Reorder Cost:</span>
+          <span id="reorder-est-total" class="text-amber-300 font-mono font-bold text-sm">$0.00</span>
+        </div>
+      </div>
+
+      <div id="reorder-list" class="space-y-3">
+        <div class="p-8 text-center text-slate-500 bg-slate-900 rounded-2xl border border-slate-800">
+          No items marked for reorder yet.
+        </div>
       </div>
     </div>
+
   </main>
 
   <!-- Add / Edit Material Modal -->
@@ -160,6 +195,18 @@
           <div>
             <label class="text-xs text-slate-300 font-semibold mb-1 block">Reserved for Job:</label>
             <input type="text" id="mat-reserved" placeholder="e.g. Wire roller" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-emerald-500">
+          </div>
+        </div>
+
+        <!-- Reorder Controls -->
+        <div class="bg-amber-950/20 p-3 rounded-xl border border-amber-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <label class="flex items-center gap-2 text-xs text-amber-300 font-semibold cursor-pointer select-none">
+            <input type="checkbox" id="mat-needs-reorder" class="w-4 h-4 rounded accent-amber-500">
+            <span>Add to Reorder Tab</span>
+          </label>
+          <div class="flex items-center gap-2">
+            <label for="mat-reorder-qty" class="text-xs text-slate-300 font-semibold">Reorder Qty:</label>
+            <input type="number" min="1" id="mat-reorder-qty" placeholder="1" class="w-20 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white text-xs font-mono focus:outline-none focus:border-amber-400">
           </div>
         </div>
 
@@ -243,12 +290,39 @@
     let currentShopId = localStorage.getItem('metaltrack_shop_id') || 'MS-336E';
     document.getElementById('current-sync-id').innerText = currentShopId;
     document.getElementById('modal-current-id').innerText = currentShopId;
+    document.getElementById('reorder-shop-label').innerText = currentShopId;
 
     const backupStorageKey = `metaltrack_backup_${currentShopId}`;
-    const expandedProfileKeys = new Set(); // Collapsed by default
-    const expandedMatTypeKeys = new Set(); // Collapsed by default
-    const expandedIds = new Set(); // Collapsed by default
+    const expandedProfileKeys = new Set();
+    const expandedMatTypeKeys = new Set();
+    const expandedIds = new Set();
     let currentModalPhotos = [];
+    let activeTab = 'inventory'; // 'inventory' | 'reorder'
+
+    // View Switcher Tabs
+    const tabInvBtn = document.getElementById('tab-inventory-btn');
+    const tabReorderBtn = document.getElementById('tab-reorder-btn');
+    const invView = document.getElementById('inventory-view');
+    const reorderView = document.getElementById('reorder-view');
+
+    function setActiveTab(tabName) {
+      activeTab = tabName;
+      if (tabName === 'inventory') {
+        invView.classList.remove('hidden');
+        reorderView.classList.add('hidden');
+        tabInvBtn.className = "py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition bg-blue-600 text-white shadow";
+        tabReorderBtn.className = "py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition text-slate-400 hover:text-white flex items-center justify-center gap-2";
+      } else {
+        invView.classList.add('hidden');
+        reorderView.classList.remove('hidden');
+        tabReorderBtn.className = "py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition bg-blue-600 text-white shadow flex items-center justify-center gap-2";
+        tabInvBtn.className = "py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition text-slate-400 hover:text-white";
+      }
+      renderCards(cachedInventoryData);
+    }
+
+    tabInvBtn.addEventListener('click', () => setActiveTab('inventory'));
+    tabReorderBtn.addEventListener('click', () => setActiveTab('reorder'));
 
     const syncModal = document.getElementById('sync-modal');
     document.getElementById('open-sync-modal').addEventListener('click', () => syncModal.classList.remove('hidden') || syncModal.classList.add('flex'));
@@ -264,6 +338,8 @@
       document.getElementById('mat-price').value = "";
       document.getElementById('mat-quantity').value = "";
       document.getElementById('mat-reserved').value = "";
+      document.getElementById('mat-needs-reorder').checked = false;
+      document.getElementById('mat-reorder-qty').value = "1";
       document.getElementById('mat-purchased-date').value = "";
       document.getElementById('mat-supplier').value = "";
       document.getElementById('mat-photo-input').value = "";
@@ -493,10 +569,78 @@
       document.getElementById('network-dot').className = "w-2 h-2 rounded-full bg-amber-500 inline-block";
     });
 
+    function renderReorderList(data) {
+      const reorderContainer = document.getElementById('reorder-list');
+      const badgeEl = document.getElementById('reorder-count-badge');
+      const estTotalEl = document.getElementById('reorder-est-total');
+
+      const entries = Object.entries(data || {}).filter(([, item]) => Boolean(item && item.needsReorder));
+      badgeEl.innerText = entries.length.toString();
+
+      if (entries.length === 0) {
+        estTotalEl.innerText = "$0.00";
+        reorderContainer.innerHTML = `<div class="p-8 text-center text-slate-500 bg-slate-900 rounded-2xl border border-slate-800">No items marked for reorder yet. Expand any item in <span class="text-blue-400 font-semibold">Inventory</span> and tap <span class="text-amber-300 font-semibold">Reorder</span> to add it here.</div>`;
+        return;
+      }
+
+      let estTotal = 0;
+      reorderContainer.innerHTML = '';
+
+      entries.forEach(([id, item]) => {
+        const category = item.category || 'Sheet Metal';
+        const pricing = computeItemPricing(item, category);
+        const reorderQty = Math.max(1, parseInt(item.reorderQty) || 1);
+        const reorderCost = pricing.effectiveUnit * reorderQty;
+        estTotal += reorderCost;
+
+        const supplier = item.supplier && item.supplier.trim() !== '' ? item.supplier : 'Unknown Supplier';
+        const photos = item.photos || [];
+
+        const row = document.createElement('div');
+        row.className = "bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4";
+        row.innerHTML = `
+          <div class="flex items-start sm:items-center gap-3">
+            ${photos.length > 0 ? `<img src="${photos[0]}" class="zoom-photo w-12 h-12 rounded-xl object-cover border border-slate-700 cursor-pointer shrink-0">` : ''}
+            <div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="px-2 py-0.5 bg-slate-800 text-slate-300 rounded-md text-[11px] font-medium border border-slate-700/50">${category}</span>
+                <span class="text-xs text-slate-400 font-mono">In Stock: ${pricing.qty}</span>
+              </div>
+              <h3 class="text-sm font-bold text-white mt-1">${item.name || 'Unnamed Material'}</h3>
+              <p class="text-xs text-slate-400 font-mono">Dim: ${item.dimensions || 'N/A'} • Supplier: <span class="text-slate-200">${supplier}</span></p>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 border-slate-800 pt-3 sm:pt-0">
+            <div class="flex items-center gap-1 bg-slate-950/70 p-1.5 rounded-xl border border-slate-800">
+              <span class="text-[10px] uppercase text-slate-400 font-semibold px-1">Order Qty</span>
+              <button data-id="${id}" data-action="dec" class="reorder-qty-btn bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold w-6 h-6 rounded-md flex items-center justify-center text-xs transition border border-slate-700">-</button>
+              <input type="number" min="1" data-id="${id}" value="${reorderQty}" class="reorder-qty-input w-12 bg-slate-900 border border-slate-700 rounded-md text-center text-xs font-mono text-white font-bold py-0.5 focus:outline-none focus:border-amber-400">
+              <button data-id="${id}" data-action="inc" class="reorder-qty-btn bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold w-6 h-6 rounded-md flex items-center justify-center text-xs transition border border-slate-700">+</button>
+            </div>
+
+            <div class="text-right min-w-[76px]">
+              <span class="text-[10px] uppercase text-slate-400 font-semibold block">Est. Cost</span>
+              <span class="text-amber-300 font-mono font-bold text-sm">$${reorderCost.toFixed(2)}</span>
+            </div>
+
+            <button data-id="${id}" class="toggle-reorder-btn text-xs px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold transition">
+              Remove
+            </button>
+          </div>
+        `;
+        reorderContainer.appendChild(row);
+      });
+
+      estTotalEl.innerText = `$${estTotal.toFixed(2)}`;
+    }
+
     function renderCards(data) {
       const container = document.getElementById('inventory-list');
       const selectedCategory = document.getElementById('category-filter').value;
       container.innerHTML = '';
+
+      renderReorderList(data);
 
       if (!data || Object.keys(data).length === 0) {
         container.innerHTML = `<div class="p-8 text-center text-slate-500 bg-slate-900 rounded-2xl border border-slate-800">No stock logged under channel <span class="font-mono text-blue-400">${currentShopId}</span>. Tap '+ Add Material' to begin.</div>`;
@@ -510,14 +654,14 @@
 
       Object.entries(data).forEach(([id, item]) => {
         const category = item.category || 'Sheet Metal';
+        const pricing = computeItemPricing(item, category);
+        grandTotal += pricing.lineTotal;
+
         if (selectedCategory !== 'ALL' && category !== selectedCategory) return;
 
         count++;
         const matInfo = getMaterialTypeInfo(item.name);
         const thickness = extractThickness(item.name);
-        const pricing = computeItemPricing(item, category);
-
-        grandTotal += pricing.lineTotal;
 
         if (!tree[category]) {
           tree[category] = { total: 0, matTypes: {} };
@@ -531,9 +675,10 @@
         tree[category].matTypes[matInfo.label].items.push({ id, item, thickness, pricing });
       });
 
+      document.getElementById('total-inventory-value').innerText = `$${grandTotal.toFixed(2)}`;
+
       if (count === 0) {
         container.innerHTML = `<div class="p-8 text-center text-slate-500 bg-slate-900 rounded-2xl border border-slate-800">No items match the selected category filter.</div>`;
-        document.getElementById('total-inventory-value').innerText = "$0.00";
         return;
       }
 
@@ -544,7 +689,6 @@
         const categoryWrapper = document.createElement('div');
         categoryWrapper.className = "bg-slate-900/60 rounded-2xl border border-slate-800/80 overflow-hidden";
 
-        // 1st Tier Header: Collapsible Profile Tab + Category Total Dollars
         let categoryHtml = `
           <div data-profile-key="${profileKey}" class="profile-toggle p-4 flex justify-between items-center cursor-pointer bg-slate-900 hover:bg-slate-800/80 transition select-none">
             <div class="flex items-center gap-2.5">
@@ -568,7 +712,6 @@
             const subGroup = document.createElement('div');
             subGroup.className = "bg-slate-950/40 rounded-xl border border-slate-800/70 overflow-hidden";
 
-            // 2nd Tier Sub-Header: Collapsible Material Type Tab + Material Type Total Dollars
             let subGroupHtml = `
               <div data-mattype-key="${matTypeKey}" class="mattype-toggle px-3.5 py-2.5 flex justify-between items-center cursor-pointer bg-slate-900/70 hover:bg-slate-800/60 transition select-none">
                 <div class="flex items-center gap-2">
@@ -592,6 +735,7 @@
                 const purchaseDate = item.purchaseDate ? item.purchaseDate : 'Not specified';
                 const supplier = item.supplier && item.supplier.trim() !== '' ? item.supplier : 'Unknown Supplier';
                 const photos = item.photos || [];
+                const isMarkedReorder = Boolean(item.needsReorder);
 
                 const isExpanded = expandedIds.has(id);
 
@@ -604,6 +748,7 @@
                       <span class="text-slate-500 text-xs">${isExpanded ? '▼' : '▶'}</span>
                       ${photos.length > 0 ? `<img src="${photos[0]}" class="w-7 h-7 rounded object-cover border border-slate-700">` : ''}
                       <span class="font-bold text-sm text-white">${item.name || 'Unnamed Material'}</span>
+                      ${isMarkedReorder ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-950/70 text-amber-300 border border-amber-700/60">Reorder</span>` : ''}
                     </div>
                     <div class="flex items-center gap-3">
                       <span class="text-xs font-mono text-blue-400 font-semibold">${rateDisplay}</span>
@@ -629,7 +774,10 @@
                           <span class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs font-medium border border-slate-700/50 inline-block mb-1.5">${category}</span>
                           <h4 class="text-sm font-bold text-white">${item.name || 'Unnamed Material'}</h4>
                         </div>
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-2 flex-wrap justify-end">
+                          <button data-id="${id}" class="toggle-reorder-btn text-xs px-3 py-1.5 rounded-xl border transition font-semibold ${isMarkedReorder ? 'bg-amber-950/70 text-amber-300 border-amber-700/60 hover:bg-amber-900/60' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}">
+                            ${isMarkedReorder ? '✓ Reordering' : '+ Reorder'}
+                          </button>
                           <button data-id="${id}" class="edit-btn text-blue-400 hover:text-blue-300 text-xs px-3 py-1.5 bg-blue-950/50 hover:bg-blue-900/60 rounded-xl border border-blue-900/50 transition">
                             Edit
                           </button>
@@ -716,8 +864,6 @@
 
         container.appendChild(categoryWrapper);
       });
-
-      document.getElementById('total-inventory-value').innerText = `$${grandTotal.toFixed(2)}`;
     }
 
     function updateQuantity(id, newQty) {
@@ -730,7 +876,45 @@
       }
     }
 
+    function toggleReorderFlag(id) {
+      if (!cachedInventoryData[id]) return;
+      const nextState = !Boolean(cachedInventoryData[id].needsReorder);
+      const reorderQty = Math.max(1, parseInt(cachedInventoryData[id].reorderQty) || 1);
+      cachedInventoryData[id].needsReorder = nextState;
+      cachedInventoryData[id].reorderQty = reorderQty;
+      localStorage.setItem(backupStorageKey, JSON.stringify(cachedInventoryData));
+      renderCards(cachedInventoryData);
+      update(ref(db, `shops/${currentShopId}/inventory/${id}`), {
+        needsReorder: nextState,
+        reorderQty: reorderQty
+      }).catch(() => {});
+    }
+
+    function updateReorderQty(id, newReorderQty) {
+      if (!cachedInventoryData[id]) return;
+      const qtyVal = Math.max(1, parseInt(newReorderQty) || 1);
+      cachedInventoryData[id].reorderQty = qtyVal;
+      localStorage.setItem(backupStorageKey, JSON.stringify(cachedInventoryData));
+      renderCards(cachedInventoryData);
+      update(ref(db, `shops/${currentShopId}/inventory/${id}`), { reorderQty: qtyVal }).catch(() => {});
+    }
+
     document.addEventListener('click', (e) => {
+      const reorderToggleBtn = e.target.closest('.toggle-reorder-btn');
+      if (reorderToggleBtn) {
+        toggleReorderFlag(reorderToggleBtn.getAttribute('data-id'));
+        return;
+      }
+
+      const reorderQtyBtn = e.target.closest('.reorder-qty-btn');
+      if (reorderQtyBtn) {
+        const id = reorderQtyBtn.getAttribute('data-id');
+        const action = reorderQtyBtn.getAttribute('data-action');
+        const currentReorderQty = Math.max(1, parseInt(cachedInventoryData[id]?.reorderQty) || 1);
+        updateReorderQty(id, action === 'inc' ? currentReorderQty + 1 : currentReorderQty - 1);
+        return;
+      }
+
       const profileToggle = e.target.closest('.profile-toggle');
       if (profileToggle) {
         const key = profileToggle.getAttribute('data-profile-key');
@@ -783,6 +967,8 @@
           document.getElementById('mat-price').value = item.price || '';
           document.getElementById('mat-quantity').value = item.quantity || '1';
           document.getElementById('mat-reserved').value = item.reserved || '';
+          document.getElementById('mat-needs-reorder').checked = Boolean(item.needsReorder);
+          document.getElementById('mat-reorder-qty').value = item.reorderQty || '1';
           document.getElementById('mat-purchased-date').value = item.purchaseDate || '';
           document.getElementById('mat-supplier').value = item.supplier || '';
           
@@ -810,6 +996,8 @@
     document.addEventListener('change', (e) => {
       if (e.target.classList.contains('qty-input')) {
         updateQuantity(e.target.getAttribute('data-id'), e.target.value);
+      } else if (e.target.classList.contains('reorder-qty-input')) {
+        updateReorderQty(e.target.getAttribute('data-id'), e.target.value);
       }
     });
 
@@ -824,6 +1012,8 @@
       const price = document.getElementById('mat-price').value.trim();
       const quantity = document.getElementById('mat-quantity').value.trim();
       const reserved = document.getElementById('mat-reserved').value.trim();
+      const needsReorder = document.getElementById('mat-needs-reorder').checked;
+      const reorderQty = Math.max(1, parseInt(document.getElementById('mat-reorder-qty').value) || 1);
       const purchaseDate = document.getElementById('mat-purchased-date').value;
       const supplier = document.getElementById('mat-supplier').value.trim();
 
@@ -840,12 +1030,13 @@
         price: price || '0.00',
         quantity: quantity || '1',
         reserved: reserved || 'General Stock',
+        needsReorder,
+        reorderQty,
         purchaseDate: purchaseDate || '',
         supplier: supplier || '',
         photos: currentModalPhotos
       };
 
-      // Auto-expand the saved item's profile and material type so it's easy to find
       const matInfo = getMaterialTypeInfo(name);
       expandedProfileKeys.add(category);
       expandedMatTypeKeys.add(`${category}::${matInfo.label}`);
