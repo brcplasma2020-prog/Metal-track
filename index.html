@@ -96,7 +96,7 @@
     </div>
 
     <!-- Hierarchical Tree Inventory List Container -->
-    <div id="inventory-list" class="space-y-6">
+    <div id="inventory-list" class="space-y-4">
       <div class="p-8 text-center text-slate-500 bg-slate-900 rounded-2xl border border-slate-800">
         Loading inventory from local shop storage...
       </div>
@@ -245,8 +245,10 @@
     document.getElementById('modal-current-id').innerText = currentShopId;
 
     const backupStorageKey = `metaltrack_backup_${currentShopId}`;
-    const expandedIds = new Set();
-    let currentModalPhotos = []; // Holds base64 strings for current item being added/edited
+    const expandedProfileKeys = new Set(); // Collapsed by default
+    const expandedMatTypeKeys = new Set(); // Collapsed by default
+    const expandedIds = new Set(); // Collapsed by default
+    let currentModalPhotos = [];
 
     const syncModal = document.getElementById('sync-modal');
     document.getElementById('open-sync-modal').addEventListener('click', () => syncModal.classList.remove('hidden') || syncModal.classList.add('flex'));
@@ -272,11 +274,10 @@
     });
     document.getElementById('close-add-modal').addEventListener('click', () => addModal.classList.add('hidden'));
 
-    // Lightbox modal handlers
     const lightboxModal = document.getElementById('lightbox-modal');
     const lightboxImg = document.getElementById('lightbox-img');
     document.getElementById('close-lightbox').addEventListener('click', () => lightboxModal.classList.add('hidden'));
-    lightboxModal.addEventListener('click', (e) => { if(e.target === lightboxModal) lightboxModal.classList.add('hidden'); });
+    lightboxModal.addEventListener('click', (e) => { if (e.target === lightboxModal) lightboxModal.classList.add('hidden'); });
 
     document.getElementById('connect-channel-btn').addEventListener('click', () => {
       const inputVal = document.getElementById('target-shop-input').value.trim().toUpperCase();
@@ -296,7 +297,6 @@
       else label.innerText = "Price per Unit ($):";
     });
 
-    // Compress & convert selected files to base64
     document.getElementById('mat-photo-input').addEventListener('change', async (e) => {
       const files = Array.from(e.target.files);
       if (currentModalPhotos.length + files.length > 2) {
@@ -311,7 +311,7 @@
         }
       }
       renderModalPhotoPreviews();
-      e.target.value = ''; // reset input
+      e.target.value = '';
     });
 
     function resizeAndCompressImage(file) {
@@ -323,7 +323,7 @@
             const canvas = document.createElement('canvas');
             let width = img.width;
             let height = img.height;
-            const maxDim = 600; // max dimension to keep data size tiny for local & cloud storage
+            const maxDim = 600;
             if (width > height && width > maxDim) {
               height *= maxDim / width;
               width = maxDim;
@@ -428,6 +428,41 @@
       return parseFloat(numMatches[numMatches.length - 1]);
     }
 
+    function computeItemPricing(item, category) {
+      const qty = parseFloat(item.quantity) || 0;
+      const unitPrice = parseFloat(item.price) || 0;
+      const pricingMode = item.pricingMode || 'unit';
+      let effectiveUnit = unitPrice;
+      const isLinear = category === 'Round Pipe' || category === 'Square Tube' || category === 'Structural' || category === 'Structural / Beams';
+
+      if (pricingMode === 'sq') {
+        if (isLinear) {
+          const ft = extractLengthInFeet(item.dimensions);
+          effectiveUnit = unitPrice * ft;
+        } else {
+          const m2 = calculateAreaInSqMeters(item.dimensions);
+          effectiveUnit = unitPrice * m2;
+        }
+      } else if (pricingMode === 'total') {
+        effectiveUnit = qty > 0 ? (unitPrice / qty) : 0;
+      }
+
+      const lineTotal = effectiveUnit * qty;
+
+      let rateDisplay = '';
+      if (isLinear) {
+        const totalFeet = extractLengthInFeet(item.dimensions);
+        const pFt = totalFeet > 0 ? (effectiveUnit / totalFeet).toFixed(2) : 'N/A';
+        rateDisplay = pFt !== 'N/A' ? `$${pFt}/ft` : 'N/A';
+      } else {
+        const sqMeters = calculateAreaInSqMeters(item.dimensions);
+        const pSqM = sqMeters > 0 ? (effectiveUnit / sqMeters).toFixed(2) : 'N/A';
+        rateDisplay = pSqM !== 'N/A' ? `$${pSqM}/m²` : 'N/A';
+      }
+
+      return { qty, effectiveUnit, lineTotal, rateDisplay };
+    }
+
     let cachedInventoryData = JSON.parse(localStorage.getItem(backupStorageKey)) || {};
     renderCards(cachedInventoryData);
 
@@ -480,13 +515,20 @@
         count++;
         const matInfo = getMaterialTypeInfo(item.name);
         const thickness = extractThickness(item.name);
+        const pricing = computeItemPricing(item, category);
 
-        if (!tree[category]) tree[category] = {};
-        if (!tree[category][matInfo.label]) {
-          tree[category][matInfo.label] = { rank: matInfo.rank, items: [] };
+        grandTotal += pricing.lineTotal;
+
+        if (!tree[category]) {
+          tree[category] = { total: 0, matTypes: {} };
         }
+        tree[category].total += pricing.lineTotal;
 
-        tree[category][matInfo.label].items.push({ id, item, thickness });
+        if (!tree[category].matTypes[matInfo.label]) {
+          tree[category].matTypes[matInfo.label] = { rank: matInfo.rank, total: 0, items: [] };
+        }
+        tree[category].matTypes[matInfo.label].total += pricing.lineTotal;
+        tree[category].matTypes[matInfo.label].items.push({ id, item, thickness, pricing });
       });
 
       if (count === 0) {
@@ -495,184 +537,183 @@
         return;
       }
 
-      Object.entries(tree).sort().forEach(([category, matTypes]) => {
+      Object.entries(tree).sort().forEach(([category, catGroup]) => {
+        const profileKey = category;
+        const isProfileExpanded = expandedProfileKeys.has(profileKey);
+
         const categoryWrapper = document.createElement('div');
-        categoryWrapper.className = "space-y-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80";
-        
-        categoryWrapper.innerHTML = `
-          <div class="flex items-center gap-2 border-b border-slate-800 pb-2">
-            <span class="text-blue-400 font-bold text-sm tracking-wider uppercase">📁 Profile: ${category}</span>
+        categoryWrapper.className = "bg-slate-900/60 rounded-2xl border border-slate-800/80 overflow-hidden";
+
+        // 1st Tier Header: Collapsible Profile Tab + Category Total Dollars
+        let categoryHtml = `
+          <div data-profile-key="${profileKey}" class="profile-toggle p-4 flex justify-between items-center cursor-pointer bg-slate-900 hover:bg-slate-800/80 transition select-none">
+            <div class="flex items-center gap-2.5">
+              <span class="text-slate-400 text-xs">${isProfileExpanded ? '▼' : '▶'}</span>
+              <span class="text-blue-400 font-bold text-sm tracking-wider uppercase">📁 PROFILE: ${category}</span>
+            </div>
+            <span class="text-emerald-400 font-mono font-bold text-sm">$${catGroup.total.toFixed(2)}</span>
           </div>
         `;
 
-        const matContainer = document.createElement('div');
-        matContainer.className = "space-y-3 pl-2 sm:pl-4";
+        if (isProfileExpanded) {
+          const matContainer = document.createElement('div');
+          matContainer.className = "p-4 pt-2 space-y-3 border-t border-slate-800/80";
 
-        const sortedMatTypes = Object.entries(matTypes).sort(([, a], [, b]) => a.rank - b.rank);
+          const sortedMatTypes = Object.entries(catGroup.matTypes).sort(([, a], [, b]) => a.rank - b.rank);
 
-        sortedMatTypes.forEach(([matTypeLabel, group]) => {
-          const subGroup = document.createElement('div');
-          subGroup.className = "space-y-2";
-          
-          subGroup.innerHTML = `<div class="text-xs font-semibold text-slate-400 uppercase tracking-wider pt-1">🔸 ${matTypeLabel}</div>`;
+          sortedMatTypes.forEach(([matTypeLabel, group]) => {
+            const matTypeKey = `${profileKey}::${matTypeLabel}`;
+            const isMatExpanded = expandedMatTypeKeys.has(matTypeKey);
 
-          group.items.sort((a, b) => a.thickness - b.thickness);
+            const subGroup = document.createElement('div');
+            subGroup.className = "bg-slate-950/40 rounded-xl border border-slate-800/70 overflow-hidden";
 
-          const itemsList = document.createElement('div');
-          itemsList.className = "space-y-2";
-
-          group.items.forEach(({ id, item }) => {
-            const qty = parseFloat(item.quantity) || 0;
-            let unitPrice = parseFloat(item.price) || 0;
-            const pricingMode = item.pricingMode || 'unit';
-            let effectiveUnit = unitPrice;
-            const isLinear = category === 'Round Pipe' || category === 'Square Tube' || category === 'Structural' || category === 'Structural / Beams';
-
-            if (pricingMode === 'sq') {
-              if (isLinear) {
-                const ft = extractLengthInFeet(item.dimensions);
-                effectiveUnit = unitPrice * ft;
-              } else {
-                const m2 = calculateAreaInSqMeters(item.dimensions);
-                effectiveUnit = unitPrice * m2;
-              }
-            } else if (pricingMode === 'total') {
-              effectiveUnit = qty > 0 ? (unitPrice / qty) : 0;
-            }
-
-            const lineTotal = effectiveUnit * qty;
-            grandTotal += lineTotal;
-
-            let rateDisplay = '';
-            if (isLinear) {
-              const totalFeet = extractLengthInFeet(item.dimensions);
-              const pFt = totalFeet > 0 ? (effectiveUnit / totalFeet).toFixed(2) : 'N/A';
-              rateDisplay = pFt !== 'N/A' ? `$${pFt}/ft` : 'N/A';
-            } else {
-              const sqMeters = calculateAreaInSqMeters(item.dimensions);
-              const pSqM = sqMeters > 0 ? (effectiveUnit / sqMeters).toFixed(2) : 'N/A';
-              rateDisplay = pSqM !== 'N/A' ? `$${pSqM}/m²` : 'N/A';
-            }
-
-            const reservedJob = item.reserved && item.reserved.trim() !== '' ? item.reserved : 'General Stock';
-            const isReserved = reservedJob !== 'General Stock';
-            const purchaseDate = item.purchaseDate ? item.purchaseDate : 'Not specified';
-            const supplier = item.supplier && item.supplier.trim() !== '' ? item.supplier : 'Unknown Supplier';
-            const photos = item.photos || [];
-
-            const isExpanded = expandedIds.has(id);
-
-            const card = document.createElement('div');
-            card.className = "material-row bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow transition hover:border-slate-700";
-            
-            // Collapsed Header View
-            let cardHtml = `
-              <div data-id="${id}" class="expand-toggle p-3 sm:p-4 flex justify-between items-center cursor-pointer bg-slate-900/90 hover:bg-slate-800/70 transition">
-                <div class="flex items-center gap-3">
-                  <span class="text-slate-500 text-xs">${isExpanded ? '▼' : '▶'}</span>
-                  ${photos.length > 0 ? `<img src="${photos[0]}" class="w-7 h-7 rounded object-cover border border-slate-700">` : ''}
-                  <span class="font-bold text-sm text-white">${item.name || 'Unnamed Material'}</span>
+            // 2nd Tier Sub-Header: Collapsible Material Type Tab + Material Type Total Dollars
+            let subGroupHtml = `
+              <div data-mattype-key="${matTypeKey}" class="mattype-toggle px-3.5 py-2.5 flex justify-between items-center cursor-pointer bg-slate-900/70 hover:bg-slate-800/60 transition select-none">
+                <div class="flex items-center gap-2">
+                  <span class="text-slate-400 text-[11px]">${isMatExpanded ? '▼' : '▶'}</span>
+                  <span class="text-xs font-semibold text-slate-300 uppercase tracking-wider">🔸 ${matTypeLabel}</span>
                 </div>
-                <div class="flex items-center gap-3">
-                  <span class="text-xs font-mono text-blue-400 font-semibold">${rateDisplay}</span>
-                  <span class="text-xs text-slate-400 font-mono">Qty: ${qty}</span>
-                </div>
+                <span class="text-emerald-400 font-mono font-semibold text-xs">$${group.total.toFixed(2)}</span>
               </div>
             `;
 
-            // Expanded Full Details View
-            if (isExpanded) {
-              let photoThumbnailsHtml = '';
-              if (photos.length > 0) {
-                photoThumbnailsHtml = `
-                  <div class="flex gap-2 pt-2 border-t border-slate-800/80">
-                    ${photos.map(p => `<img src="${p}" class="zoom-photo w-16 h-16 rounded-xl object-cover border border-slate-700 cursor-pointer hover:opacity-80 transition" title="Click to enlarge">`).join('')}
+            if (isMatExpanded) {
+              group.items.sort((a, b) => a.thickness - b.thickness);
+
+              const itemsList = document.createElement('div');
+              itemsList.className = "p-3 space-y-2 border-t border-slate-800/70";
+
+              group.items.forEach(({ id, item, pricing }) => {
+                const { qty, effectiveUnit, lineTotal, rateDisplay } = pricing;
+                const reservedJob = item.reserved && item.reserved.trim() !== '' ? item.reserved : 'General Stock';
+                const isReserved = reservedJob !== 'General Stock';
+                const purchaseDate = item.purchaseDate ? item.purchaseDate : 'Not specified';
+                const supplier = item.supplier && item.supplier.trim() !== '' ? item.supplier : 'Unknown Supplier';
+                const photos = item.photos || [];
+
+                const isExpanded = expandedIds.has(id);
+
+                const card = document.createElement('div');
+                card.className = "material-row bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow transition hover:border-slate-700";
+
+                let cardHtml = `
+                  <div data-id="${id}" class="expand-toggle p-3 sm:p-4 flex justify-between items-center cursor-pointer bg-slate-900/90 hover:bg-slate-800/70 transition">
+                    <div class="flex items-center gap-3">
+                      <span class="text-slate-500 text-xs">${isExpanded ? '▼' : '▶'}</span>
+                      ${photos.length > 0 ? `<img src="${photos[0]}" class="w-7 h-7 rounded object-cover border border-slate-700">` : ''}
+                      <span class="font-bold text-sm text-white">${item.name || 'Unnamed Material'}</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                      <span class="text-xs font-mono text-blue-400 font-semibold">${rateDisplay}</span>
+                      <span class="text-xs text-slate-400 font-mono">Qty: ${qty}</span>
+                    </div>
                   </div>
                 `;
-              }
 
-              cardHtml += `
-                <div class="p-4 border-t border-slate-800 bg-slate-950/50 space-y-4">
-                  <div class="flex justify-between items-start gap-2 border-b border-slate-800 pb-3">
-                    <div>
-                      <span class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs font-medium border border-slate-700/50 inline-block mb-1.5">${category}</span>
-                      <h4 class="text-sm font-bold text-white">${item.name || 'Unnamed Material'}</h4>
-                    </div>
-                    <div class="flex items-center gap-2">
-                      <button data-id="${id}" class="edit-btn text-blue-400 hover:text-blue-300 text-xs px-3 py-1.5 bg-blue-950/50 hover:bg-blue-900/60 rounded-xl border border-blue-900/50 transition">
-                        Edit
-                      </button>
-                      <button data-id="${id}" class="delete-btn text-red-400 hover:text-red-300 text-xs px-3 py-1.5 bg-red-950/50 hover:bg-red-900/60 rounded-xl border border-red-900/50 transition">
-                        Delete
-                      </button>
-                    </div>
-                  </div>
+                if (isExpanded) {
+                  let photoThumbnailsHtml = '';
+                  if (photos.length > 0) {
+                    photoThumbnailsHtml = `
+                      <div class="flex gap-2 pt-2 border-t border-slate-800/80">
+                        ${photos.map(p => `<img src="${p}" class="zoom-photo w-16 h-16 rounded-xl object-cover border border-slate-700 cursor-pointer hover:opacity-80 transition" title="Click to enlarge">`).join('')}
+                      </div>
+                    `;
+                  }
 
-                  ${photoThumbnailsHtml}
+                  cardHtml += `
+                    <div class="p-4 border-t border-slate-800 bg-slate-950/50 space-y-4">
+                      <div class="flex justify-between items-start gap-2 border-b border-slate-800 pb-3">
+                        <div>
+                          <span class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs font-medium border border-slate-700/50 inline-block mb-1.5">${category}</span>
+                          <h4 class="text-sm font-bold text-white">${item.name || 'Unnamed Material'}</h4>
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <button data-id="${id}" class="edit-btn text-blue-400 hover:text-blue-300 text-xs px-3 py-1.5 bg-blue-950/50 hover:bg-blue-900/60 rounded-xl border border-blue-900/50 transition">
+                            Edit
+                          </button>
+                          <button data-id="${id}" class="delete-btn text-red-400 hover:text-red-300 text-xs px-3 py-1.5 bg-red-950/50 hover:bg-red-900/60 rounded-xl border border-red-900/50 transition">
+                            Delete
+                          </button>
+                        </div>
+                      </div>
 
-                  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                    <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
-                      <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">Dimensions</span>
-                      <span class="font-mono text-slate-200">${item.dimensions || 'N/A'}</span>
-                    </div>
-                    
-                    <div class="bg-slate-950/60 p-2.5 rounded-xl border border-blue-900/40">
-                      <span class="text-[10px] uppercase text-blue-400 font-semibold block mb-1">Quantity</span>
-                      <div class="flex items-center gap-1">
-                        <button data-id="${id}" data-action="dec" class="qty-btn bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold w-6 h-6 rounded-md flex items-center justify-center text-xs transition border border-slate-700">-</button>
-                        <input type="number" data-id="${id}" value="${qty}" class="qty-input w-12 bg-slate-900 border border-slate-700 rounded-md text-center text-xs font-mono text-white font-bold py-0.5 focus:outline-none focus:border-blue-500">
-                        <button data-id="${id}" data-action="inc" class="qty-btn bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold w-6 h-6 rounded-md flex items-center justify-center text-xs transition border border-slate-700">+</button>
+                      ${photoThumbnailsHtml}
+
+                      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                        <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
+                          <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">Dimensions</span>
+                          <span class="font-mono text-slate-200">${item.dimensions || 'N/A'}</span>
+                        </div>
+                        
+                        <div class="bg-slate-950/60 p-2.5 rounded-xl border border-blue-900/40">
+                          <span class="text-[10px] uppercase text-blue-400 font-semibold block mb-1">Quantity</span>
+                          <div class="flex items-center gap-1">
+                            <button data-id="${id}" data-action="dec" class="qty-btn bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold w-6 h-6 rounded-md flex items-center justify-center text-xs transition border border-slate-700">-</button>
+                            <input type="number" data-id="${id}" value="${qty}" class="qty-input w-12 bg-slate-900 border border-slate-700 rounded-md text-center text-xs font-mono text-white font-bold py-0.5 focus:outline-none focus:border-blue-500">
+                            <button data-id="${id}" data-action="inc" class="qty-btn bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold w-6 h-6 rounded-md flex items-center justify-center text-xs transition border border-slate-700">+</button>
+                          </div>
+                        </div>
+
+                        <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
+                          <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">Unit Price</span>
+                          <span class="font-mono text-slate-200">$${effectiveUnit.toFixed(2)}</span>
+                        </div>
+
+                        <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
+                          <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">Calculated Rate</span>
+                          <span class="font-mono text-blue-400 font-semibold">${rateDisplay}</span>
+                        </div>
+                      </div>
+
+                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-950/40 p-2.5 rounded-xl border border-slate-800/80 text-xs">
+                        <div>
+                          <span class="text-[10px] uppercase text-slate-400 font-semibold block">Supplier</span>
+                          <span class="text-slate-200 font-medium">${supplier}</span>
+                        </div>
+                        <div>
+                          <span class="text-[10px] uppercase text-slate-400 font-semibold block">Purchased Date</span>
+                          <span class="text-slate-200 font-mono">${purchaseDate}</span>
+                        </div>
+                      </div>
+
+                      <div class="flex justify-between items-center pt-1 border-t border-slate-800/60 text-xs">
+                        <div class="flex items-center gap-1.5">
+                          <span class="text-slate-400 font-medium">Reserved:</span>
+                          <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold ${isReserved ? 'bg-amber-950/60 text-amber-300 border border-amber-800/60' : 'bg-slate-800 text-slate-400'}">
+                            ${reservedJob}
+                          </span>
+                        </div>
+                        
+                        <div class="text-right">
+                          <span class="text-[10px] uppercase text-slate-400 font-semibold block">Total Cost</span>
+                          <span class="text-emerald-400 font-mono font-bold text-sm">$${lineTotal.toFixed(2)}</span>
+                        </div>
                       </div>
                     </div>
+                  `;
+                }
 
-                    <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
-                      <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">Unit Price</span>
-                      <span class="font-mono text-slate-200">$${effectiveUnit.toFixed(2)}</span>
-                    </div>
+                card.innerHTML = cardHtml;
+                itemsList.appendChild(card);
+              });
 
-                    <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
-                      <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">Calculated Rate</span>
-                      <span class="font-mono text-blue-400 font-semibold">${rateDisplay}</span>
-                    </div>
-                  </div>
-
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-950/40 p-2.5 rounded-xl border border-slate-800/80 text-xs">
-                    <div>
-                      <span class="text-[10px] uppercase text-slate-400 font-semibold block">Supplier</span>
-                      <span class="text-slate-200 font-medium">${supplier}</span>
-                    </div>
-                    <div>
-                      <span class="text-[10px] uppercase text-slate-400 font-semibold block">Purchased Date</span>
-                      <span class="text-slate-200 font-mono">${purchaseDate}</span>
-                    </div>
-                  </div>
-
-                  <div class="flex justify-between items-center pt-1 border-t border-slate-800/60 text-xs">
-                    <div class="flex items-center gap-1.5">
-                      <span class="text-slate-400 font-medium">Reserved:</span>
-                      <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold ${isReserved ? 'bg-amber-950/60 text-amber-300 border border-amber-800/60' : 'bg-slate-800 text-slate-400'}">
-                        ${reservedJob}
-                      </span>
-                    </div>
-                    
-                    <div class="text-right">
-                      <span class="text-[10px] uppercase text-slate-400 font-semibold block">Total Cost</span>
-                      <span class="text-emerald-400 font-mono font-bold text-sm">$${lineTotal.toFixed(2)}</span>
-                    </div>
-                  </div>
-                </div>
-              `;
+              subGroup.innerHTML = subGroupHtml;
+              subGroup.appendChild(itemsList);
+            } else {
+              subGroup.innerHTML = subGroupHtml;
             }
 
-            card.innerHTML = cardHtml;
-            itemsList.appendChild(card);
+            matContainer.appendChild(subGroup);
           });
 
-          subGroup.appendChild(itemsList);
-          matContainer.appendChild(subGroup);
-        });
+          categoryWrapper.innerHTML = categoryHtml;
+          categoryWrapper.appendChild(matContainer);
+        } else {
+          categoryWrapper.innerHTML = categoryHtml;
+        }
 
-        categoryWrapper.appendChild(matContainer);
         container.appendChild(categoryWrapper);
       });
 
@@ -690,6 +731,24 @@
     }
 
     document.addEventListener('click', (e) => {
+      const profileToggle = e.target.closest('.profile-toggle');
+      if (profileToggle) {
+        const key = profileToggle.getAttribute('data-profile-key');
+        if (expandedProfileKeys.has(key)) expandedProfileKeys.delete(key);
+        else expandedProfileKeys.add(key);
+        renderCards(cachedInventoryData);
+        return;
+      }
+
+      const matTypeToggle = e.target.closest('.mattype-toggle');
+      if (matTypeToggle) {
+        const key = matTypeToggle.getAttribute('data-mattype-key');
+        if (expandedMatTypeKeys.has(key)) expandedMatTypeKeys.delete(key);
+        else expandedMatTypeKeys.add(key);
+        renderCards(cachedInventoryData);
+        return;
+      }
+
       const toggleRow = e.target.closest('.expand-toggle');
       if (toggleRow && !e.target.closest('button') && !e.target.closest('input')) {
         const id = toggleRow.getAttribute('data-id');
@@ -785,6 +844,11 @@
         supplier: supplier || '',
         photos: currentModalPhotos
       };
+
+      // Auto-expand the saved item's profile and material type so it's easy to find
+      const matInfo = getMaterialTypeInfo(name);
+      expandedProfileKeys.add(category);
+      expandedMatTypeKeys.add(`${category}::${matInfo.label}`);
 
       if (editId) {
         cachedInventoryData[editId] = itemData;
