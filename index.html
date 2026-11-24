@@ -44,7 +44,7 @@
     <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs sm:text-sm font-bold">
       <div class="flex items-center gap-2 text-center sm:text-left">
         <span>🔄</span>
-        <span>A newer version of MetalTrack was published (<span id="remote-version-label" class="font-mono"></span>). Please refresh the app to get the latest update.</span>
+        <span>A newer version of MetalTrack is available (<span id="remote-version-label" class="font-mono"></span>). Please refresh the app.</span>
       </div>
       <div class="flex items-center gap-2 shrink-0">
         <button id="refresh-app-btn" class="bg-slate-950 hover:bg-slate-800 text-amber-300 px-3.5 py-1.5 rounded-xl font-bold text-xs transition shadow">
@@ -63,7 +63,10 @@
       <div class="flex items-center gap-2">
         <div class="bg-blue-600 text-white p-2 rounded-xl font-bold text-lg shadow-inner">⚙️</div>
         <div>
-          <h1 class="font-bold text-base tracking-wide">MetalTrack</h1>
+          <div class="flex items-center gap-2">
+            <h1 class="font-bold text-base tracking-wide">MetalTrack</h1>
+            <span id="current-app-version-label" class="text-[10px] font-mono text-slate-500"></span>
+          </div>
           <div class="flex items-center gap-1.5 text-xs text-slate-400">
             <span id="network-dot" class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
             <span id="network-status">Ready / Synced</span>
@@ -304,12 +307,24 @@
   </div>
 
   <!-- Firebase & App Script Logic -->
-  <script type="module">
+  <script id="metaltrack-app-script" type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getDatabase, ref, onValue, push, set, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    // Bump this string whenever you deploy an app update to notify other devices
-    const CURRENT_APP_VERSION = "2026-11-23-v1";
+    // Automatically derive a build ID from the live app script content
+    function computeAutoBuildId() {
+      const codeEl = document.getElementById('metaltrack-app-script');
+      const source = (codeEl ? codeEl.textContent : document.documentElement.innerHTML) || '';
+      let hash = 2166136261;
+      for (let i = 0; i < source.length; i++) {
+        hash ^= source.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+      }
+      return `b-${(hash >>> 0).toString(36)}`;
+    }
+
+    const CURRENT_APP_BUILD = computeAutoBuildId();
+    document.getElementById('current-app-version-label').innerText = CURRENT_APP_BUILD;
 
     const firebaseConfig = {
       apiKey: "AIzaSyDHDDCPeOyHkDGpHZAU9AAdKm14M5LCT-0",
@@ -332,19 +347,21 @@
     document.getElementById('reorder-shop-label').innerText = currentShopId;
 
     const backupStorageKey = `metaltrack_backup_${currentShopId}`;
+    const localKnownBuildKey = `metaltrack_known_build_${currentShopId}`;
     const expandedProfileKeys = new Set();
     const expandedMatTypeKeys = new Set();
     const expandedIds = new Set();
     let currentModalPhotos = [];
     let activeTab = 'inventory';
 
-    // Multi-device update notification controls
+    // Automatic multi-device build sync & refresh notification
     const updateBanner = document.getElementById('app-update-banner');
     const remoteVersionLabel = document.getElementById('remote-version-label');
-    const versionRef = ref(db, `shops/${currentShopId}/appVersion`);
+    const buildRef = ref(db, `shops/${currentShopId}/appBuild`);
 
     async function forceAppRefresh() {
       try {
+        localStorage.setItem(localKnownBuildKey, CURRENT_APP_BUILD);
         if ('caches' in window) {
           const keys = await caches.keys();
           await Promise.all(keys.map(k => caches.delete(k)));
@@ -364,16 +381,26 @@
       updateBanner.classList.add('hidden');
     });
 
-    onValue(versionRef, (snapshot) => {
-      const serverVersion = snapshot.val();
-      if (!serverVersion) {
-        set(versionRef, CURRENT_APP_VERSION).catch(() => {});
+    onValue(buildRef, (snapshot) => {
+      const serverBuild = snapshot.val();
+      const previouslySeenBuild = localStorage.getItem(localKnownBuildKey);
+
+      // First time seeing this build on this device: publish it as the latest shop build
+      if (!serverBuild || (previouslySeenBuild && previouslySeenBuild !== CURRENT_APP_BUILD)) {
+        localStorage.setItem(localKnownBuildKey, CURRENT_APP_BUILD);
+        set(buildRef, {
+          id: CURRENT_APP_BUILD,
+          updatedAt: Date.now()
+        }).catch(() => {});
         return;
       }
-      if (serverVersion !== CURRENT_APP_VERSION) {
-        remoteVersionLabel.innerText = serverVersion;
+
+      const remoteBuildId = typeof serverBuild === 'string' ? serverBuild : serverBuild.id;
+      if (remoteBuildId && remoteBuildId !== CURRENT_APP_BUILD) {
+        remoteVersionLabel.innerText = remoteBuildId;
         updateBanner.classList.remove('hidden');
       } else {
+        localStorage.setItem(localKnownBuildKey, CURRENT_APP_BUILD);
         updateBanner.classList.add('hidden');
       }
     });
