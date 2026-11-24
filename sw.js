@@ -1,4 +1,4 @@
-const CACHE_NAME = 'metaltrack-v10';
+const CACHE_NAME = 'metaltrack-v11';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
