@@ -294,6 +294,13 @@
       <button id="connect-channel-btn" class="w-full bg-blue-600 hover:bg-blue-500 py-3.5 rounded-xl font-bold text-sm transition shadow-lg">
         Switch & Sync Channel
       </button>
+
+      <div class="pt-3 border-t border-slate-800 space-y-2">
+        <button id="broadcast-update-btn" type="button" class="w-full bg-amber-600 hover:bg-amber-500 text-slate-950 py-2.5 rounded-xl font-bold text-xs transition shadow">
+          📢 Broadcast Current Build to Other Devices
+        </button>
+        <p id="broadcast-status" class="text-[11px] text-slate-400 text-center font-mono"></p>
+      </div>
     </div>
   </div>
 
@@ -347,6 +354,7 @@
 
     const backupStorageKey = `metaltrack_backup_${currentShopId}`;
     const localKnownBuildKey = `metaltrack_known_build_${currentShopId}`;
+    const dismissedBuildKey = `metaltrack_dismissed_build_${currentShopId}`;
     const expandedProfileKeys = new Set();
     const expandedMatTypeKeys = new Set();
     const expandedIds = new Set();
@@ -356,11 +364,33 @@
     // Automatic multi-device build sync & refresh notification
     const updateBanner = document.getElementById('app-update-banner');
     const remoteVersionLabel = document.getElementById('remote-version-label');
+    const broadcastStatus = document.getElementById('broadcast-status');
     const buildRef = ref(db, `shops/${currentShopId}/appBuild`);
+
+    function publishCurrentBuild() {
+      localStorage.setItem(localKnownBuildKey, CURRENT_APP_BUILD);
+      localStorage.removeItem(dismissedBuildKey);
+      return set(buildRef, {
+        id: CURRENT_APP_BUILD,
+        updatedAt: Date.now()
+      });
+    }
+
+    document.getElementById('broadcast-update-btn').addEventListener('click', () => {
+      broadcastStatus.innerText = "Publishing build...";
+      publishCurrentBuild()
+        .then(() => {
+          broadcastStatus.innerText = `Published ${CURRENT_APP_BUILD} to ${currentShopId}`;
+        })
+        .catch(() => {
+          broadcastStatus.innerText = "Failed to publish (check network)";
+        });
+    });
 
     async function forceAppRefresh() {
       try {
         localStorage.setItem(localKnownBuildKey, CURRENT_APP_BUILD);
+        localStorage.removeItem(dismissedBuildKey);
         if ('caches' in window) {
           const keys = await caches.keys();
           await Promise.all(keys.map(k => caches.delete(k)));
@@ -377,6 +407,10 @@
 
     document.getElementById('refresh-app-btn').addEventListener('click', forceAppRefresh);
     document.getElementById('dismiss-update-btn').addEventListener('click', () => {
+      const currentRemote = remoteVersionLabel.innerText;
+      if (currentRemote) {
+        localStorage.setItem(dismissedBuildKey, currentRemote);
+      }
       updateBanner.classList.add('hidden');
     });
 
@@ -384,21 +418,29 @@
       const serverBuild = snapshot.val();
       const previouslySeenBuild = localStorage.getItem(localKnownBuildKey);
 
-      if (!serverBuild || (previouslySeenBuild && previouslySeenBuild !== CURRENT_APP_BUILD)) {
-        localStorage.setItem(localKnownBuildKey, CURRENT_APP_BUILD);
-        set(buildRef, {
-          id: CURRENT_APP_BUILD,
-          updatedAt: Date.now()
-        }).catch(() => {});
+      if (!serverBuild) {
+        publishCurrentBuild().catch(() => {});
         return;
       }
 
       const remoteBuildId = typeof serverBuild === 'string' ? serverBuild : serverBuild.id;
-      if (remoteBuildId && remoteBuildId !== CURRENT_APP_BUILD) {
+      if (!remoteBuildId) return;
+
+      // If this device just received newly deployed code that it hadn't seen locally before, publish it
+      if (previouslySeenBuild && previouslySeenBuild !== CURRENT_APP_BUILD && remoteBuildId === previouslySeenBuild) {
+        publishCurrentBuild().catch(() => {});
+        return;
+      }
+
+      if (remoteBuildId !== CURRENT_APP_BUILD) {
+        const dismissedId = localStorage.getItem(dismissedBuildKey);
         remoteVersionLabel.innerText = remoteBuildId;
-        updateBanner.classList.remove('hidden');
+        if (dismissedId !== remoteBuildId) {
+          updateBanner.classList.remove('hidden');
+        }
       } else {
         localStorage.setItem(localKnownBuildKey, CURRENT_APP_BUILD);
+        localStorage.removeItem(dismissedBuildKey);
         updateBanner.classList.add('hidden');
       }
     });
@@ -429,7 +471,11 @@
     tabReorderBtn.addEventListener('click', () => setActiveTab('reorder'));
 
     const syncModal = document.getElementById('sync-modal');
-    const openSync = () => { syncModal.classList.remove('hidden'); syncModal.classList.add('flex'); };
+    const openSync = () => {
+      broadcastStatus.innerText = "";
+      syncModal.classList.remove('hidden');
+      syncModal.classList.add('flex');
+    };
     document.getElementById('open-sync-modal').addEventListener('click', openSync);
     document.getElementById('open-sync-modal-mobile').addEventListener('click', openSync);
     document.getElementById('close-sync-modal').addEventListener('click', () => syncModal.classList.add('hidden'));
