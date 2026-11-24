@@ -125,7 +125,7 @@
       <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4">
         <div class="w-full sm:w-auto">
           <h2 class="text-lg font-bold">Material Inventory</h2>
-          <p class="text-xs text-slate-400">Hierarchical tree grouping & photo attachments.</p>
+          <p class="text-xs text-slate-400">Tap a profile to expand material types, thickness, and item details.</p>
         </div>
 
         <div class="flex items-center gap-2 w-full sm:w-auto flex-wrap">
@@ -426,7 +426,6 @@
       const remoteBuildId = typeof serverBuild === 'string' ? serverBuild : serverBuild.id;
       if (!remoteBuildId) return;
 
-      // If this device just received newly deployed code that it hadn't seen locally before, publish it
       if (previouslySeenBuild && previouslySeenBuild !== CURRENT_APP_BUILD && remoteBuildId === previouslySeenBuild) {
         publishCurrentBuild().catch(() => {});
         return;
