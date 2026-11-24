@@ -37,20 +37,20 @@
     .shadow-xl { box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.5); }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans overflow-x-hidden">
 
   <!-- Multi-Device App Update Banner -->
   <div id="app-update-banner" class="hidden bg-amber-500 text-slate-950 px-4 py-2.5 shadow-lg sticky top-0 z-50 border-b border-amber-400">
     <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs sm:text-sm font-bold">
       <div class="flex items-center gap-2 text-center sm:text-left">
         <span>🔄</span>
-        <span>A newer version of MetalTrack is available (<span id="remote-version-label" class="font-mono"></span>). Please refresh the app.</span>
+        <span>A newer version of MetalTrack is available (<span id="remote-version-label" class="font-mono whitespace-nowrap"></span>). Please refresh the app.</span>
       </div>
       <div class="flex items-center gap-2 shrink-0">
-        <button id="refresh-app-btn" class="bg-slate-950 hover:bg-slate-800 text-amber-300 px-3.5 py-1.5 rounded-xl font-bold text-xs transition shadow">
+        <button id="refresh-app-btn" class="bg-slate-950 hover:bg-slate-800 text-amber-300 px-3.5 py-1.5 rounded-xl font-bold text-xs transition shadow shrink-0">
           Refresh App
         </button>
-        <button id="dismiss-update-btn" class="text-slate-900 hover:text-black px-2 py-1 text-xs font-bold" title="Dismiss">
+        <button id="dismiss-update-btn" class="text-slate-900 hover:text-black px-2 py-1 text-xs font-bold shrink-0" title="Dismiss">
           &times;
         </button>
       </div>
@@ -59,48 +59,47 @@
 
   <!-- Header / Navigation Bar -->
   <header class="bg-slate-900 border-b border-slate-800 p-4 shadow-lg sticky top-0 z-40 flex flex-col sm:flex-row justify-between items-center gap-3">
-    <div class="flex items-center space-x-3 w-full sm:w-auto justify-between sm:justify-start">
-      <div class="flex items-center gap-2">
-        <div class="bg-blue-600 text-white p-2 rounded-xl font-bold text-lg shadow-inner">⚙️</div>
-        <div>
-          <div class="flex items-center gap-2">
-            <h1 class="font-bold text-base tracking-wide">MetalTrack</h1>
-            <span id="current-app-version-label" class="text-[10px] font-mono text-slate-500"></span>
-          </div>
+    <div class="flex items-center justify-between sm:justify-start gap-3 w-full sm:w-auto">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="bg-blue-600 text-white p-2 rounded-xl font-bold text-lg shadow-inner shrink-0">⚙️</div>
+        <div class="min-w-0">
+          <h1 class="font-bold text-base tracking-wide leading-tight">MetalTrack</h1>
           <div class="flex items-center gap-1.5 text-xs text-slate-400">
-            <span id="network-dot" class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-            <span id="network-status">Ready / Synced</span>
+            <span id="network-dot" class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse shrink-0"></span>
+            <span id="network-status" class="truncate">Ready / Synced</span>
+            <span id="current-app-version-label" class="text-[10px] font-mono text-slate-500 whitespace-nowrap"></span>
           </div>
         </div>
       </div>
 
       <!-- Shop Sync Button (Mobile position) -->
-      <button id="open-sync-modal-mobile" class="sm:hidden bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded-xl text-xs font-semibold transition shadow-md flex items-center justify-center gap-1">
-        <span>Sync:</span> <span id="current-sync-id-mobile" class="font-mono underline font-bold">MS-336E</span>
+      <button id="open-sync-modal-mobile" class="sm:hidden bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded-xl text-xs font-semibold transition shadow-md flex items-center justify-center gap-1 shrink-0 max-w-[140px]">
+        <span class="shrink-0">Sync:</span>
+        <span id="current-sync-id-mobile" class="font-mono underline font-bold truncate">MS-336E</span>
       </button>
     </div>
 
     <div class="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end flex-wrap">
       <!-- Stock Valuation Badge -->
-      <div class="flex flex-col text-right px-2.5 py-1 bg-slate-800/80 rounded-lg border border-slate-700/50 flex-1 sm:flex-none">
+      <div class="flex flex-col text-right px-2.5 py-1 bg-slate-800/80 rounded-lg border border-slate-700/50 flex-1 sm:flex-none min-w-[85px]">
         <span class="text-[9px] uppercase text-slate-400 font-semibold tracking-wider">Stock Value</span>
         <span id="total-inventory-value" class="text-emerald-400 font-mono font-bold text-xs sm:text-sm">$0.00</span>
       </div>
 
       <!-- Reorder Valuation Badge -->
-      <div class="flex flex-col text-right px-2.5 py-1 bg-slate-800/80 rounded-lg border border-amber-700/40 flex-1 sm:flex-none">
+      <div class="flex flex-col text-right px-2.5 py-1 bg-slate-800/80 rounded-lg border border-amber-700/40 flex-1 sm:flex-none min-w-[85px]">
         <span class="text-[9px] uppercase text-slate-400 font-semibold tracking-wider">Reorder</span>
         <span id="header-reorder-value" class="text-amber-300 font-mono font-bold text-xs sm:text-sm">$0.00</span>
       </div>
 
       <!-- Combined Grand Total Badge -->
-      <div class="flex flex-col text-right px-2.5 py-1 bg-blue-950/60 rounded-lg border border-blue-600/50 flex-1 sm:flex-none">
+      <div class="flex flex-col text-right px-2.5 py-1 bg-blue-950/60 rounded-lg border border-blue-600/50 flex-1 sm:flex-none min-w-[85px]">
         <span class="text-[9px] uppercase text-blue-300 font-semibold tracking-wider">Grand Total</span>
         <span id="grand-total-value" class="text-white font-mono font-bold text-xs sm:text-sm">$0.00</span>
       </div>
 
       <!-- Shop Sync Button (Desktop position) -->
-      <button id="open-sync-modal" class="hidden sm:flex bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition shadow-md items-center justify-center gap-1">
+      <button id="open-sync-modal" class="hidden sm:flex bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition shadow-md items-center justify-center gap-1 shrink-0">
         <span>Sync:</span> <span id="current-sync-id" class="font-mono underline font-bold">MS-336E</span>
       </button>
     </div>
@@ -129,7 +128,7 @@
           <p class="text-xs text-slate-400">Hierarchical tree grouping & photo attachments.</p>
         </div>
 
-        <div class="flex items-center gap-2 w-full sm:w-auto">
+        <div class="flex items-center gap-2 w-full sm:w-auto flex-wrap">
           <!-- Category Filter Tabs -->
           <select id="category-filter" class="flex-1 sm:flex-none bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 font-medium focus:outline-none focus:border-blue-500">
             <option value="ALL">All Categories</option>
@@ -140,7 +139,7 @@
             <option value="Structural">Structural / Beams</option>
           </select>
 
-          <button id="open-add-modal" class="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition shadow-lg flex items-center gap-1">
+          <button id="open-add-modal" class="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition shadow-lg flex items-center gap-1 shrink-0">
             <span>➕</span> Add Material
           </button>
         </div>
@@ -157,11 +156,11 @@
     <!-- REORDER VIEW -->
     <div id="reorder-view" class="hidden space-y-4">
       <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div>
+        <div class="min-w-0">
           <h2 class="text-lg font-bold flex items-center gap-2">🛒 Reorder List</h2>
-          <p class="text-xs text-slate-400">Items flagged for restock under <span id="reorder-shop-label" class="font-mono text-blue-400">MS-336E</span>.</p>
+          <p class="text-xs text-slate-400 truncate">Items flagged for restock under <span id="reorder-shop-label" class="font-mono text-blue-400">MS-336E</span>.</p>
         </div>
-        <div class="flex items-center gap-3 bg-slate-950/70 px-3.5 py-2 rounded-xl border border-slate-800">
+        <div class="flex items-center gap-2 bg-slate-950/70 px-3.5 py-2 rounded-xl border border-slate-800 shrink-0">
           <span class="text-[11px] uppercase text-slate-400 font-semibold">Est. Reorder Cost:</span>
           <span id="reorder-est-total" class="text-amber-300 font-mono font-bold text-sm">$0.00</span>
         </div>
@@ -324,7 +323,7 @@
     }
 
     const CURRENT_APP_BUILD = computeAutoBuildId();
-    document.getElementById('current-app-version-label').innerText = CURRENT_APP_BUILD;
+    document.getElementById('current-app-version-label').innerText = `• ${CURRENT_APP_BUILD}`;
 
     const firebaseConfig = {
       apiKey: "AIzaSyDHDDCPeOyHkDGpHZAU9AAdKm14M5LCT-0",
@@ -385,7 +384,6 @@
       const serverBuild = snapshot.val();
       const previouslySeenBuild = localStorage.getItem(localKnownBuildKey);
 
-      // First time seeing this build on this device: publish it as the latest shop build
       if (!serverBuild || (previouslySeenBuild && previouslySeenBuild !== CURRENT_APP_BUILD)) {
         localStorage.setItem(localKnownBuildKey, CURRENT_APP_BUILD);
         set(buildRef, {
@@ -707,36 +705,38 @@
         const photos = item.photos || [];
 
         const row = document.createElement('div');
-        row.className = "bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4";
+        row.className = "bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg flex flex-col gap-3";
         row.innerHTML = `
-          <div class="flex items-start sm:items-center gap-3">
+          <div class="flex items-start gap-3 min-w-0">
             ${photos.length > 0 ? `<img src="${photos[0]}" class="zoom-photo w-12 h-12 rounded-xl object-cover border border-slate-700 cursor-pointer shrink-0">` : ''}
-            <div>
+            <div class="min-w-0 flex-1">
               <div class="flex items-center gap-2 flex-wrap">
                 <span class="px-2 py-0.5 bg-slate-800 text-slate-300 rounded-md text-[11px] font-medium border border-slate-700/50">${category}</span>
                 <span class="text-xs text-slate-400 font-mono">In Stock: ${pricing.qty}</span>
               </div>
-              <h3 class="text-sm font-bold text-white mt-1">${item.name || 'Unnamed Material'}</h3>
-              <p class="text-xs text-slate-400 font-mono">Dim: ${item.dimensions || 'N/A'} • Supplier: <span class="text-slate-200">${supplier}</span></p>
+              <h3 class="text-sm font-bold text-white mt-1 break-words">${item.name || 'Unnamed Material'}</h3>
+              <p class="text-xs text-slate-400 font-mono break-words">Dim: ${item.dimensions || 'N/A'} • Supplier: <span class="text-slate-200">${supplier}</span></p>
             </div>
           </div>
 
-          <div class="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 border-slate-800 pt-3 sm:pt-0">
-            <div class="flex items-center gap-1 bg-slate-950/70 p-1.5 rounded-xl border border-slate-800">
+          <div class="flex items-center justify-between gap-2 flex-wrap border-t border-slate-800 pt-3">
+            <div class="flex items-center gap-1 bg-slate-950/70 p-1.5 rounded-xl border border-slate-800 shrink-0">
               <span class="text-[10px] uppercase text-slate-400 font-semibold px-1">Order Qty</span>
               <button data-id="${id}" data-action="dec" class="reorder-qty-btn bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold w-6 h-6 rounded-md flex items-center justify-center text-xs transition border border-slate-700">-</button>
-              <input type="number" min="1" data-id="${id}" value="${reorderQty}" class="reorder-qty-input w-12 bg-slate-900 border border-slate-700 rounded-md text-center text-xs font-mono text-white font-bold py-0.5 focus:outline-none focus:border-amber-400">
+              <input type="number" min="1" data-id="${id}" value="${reorderQty}" class="reorder-qty-input w-11 bg-slate-900 border border-slate-700 rounded-md text-center text-xs font-mono text-white font-bold py-0.5 focus:outline-none focus:border-amber-400">
               <button data-id="${id}" data-action="inc" class="reorder-qty-btn bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold w-6 h-6 rounded-md flex items-center justify-center text-xs transition border border-slate-700">+</button>
             </div>
 
-            <div class="text-right min-w-[76px]">
-              <span class="text-[10px] uppercase text-slate-400 font-semibold block">Est. Cost</span>
-              <span class="text-amber-300 font-mono font-bold text-sm">$${reorderCost.toFixed(2)}</span>
-            </div>
+            <div class="flex items-center gap-3 ml-auto shrink-0">
+              <div class="text-right">
+                <span class="text-[10px] uppercase text-slate-400 font-semibold block leading-none">Est. Cost</span>
+                <span class="text-amber-300 font-mono font-bold text-sm">$${reorderCost.toFixed(2)}</span>
+              </div>
 
-            <button data-id="${id}" class="toggle-reorder-btn text-xs px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold transition">
-              Remove
-            </button>
+              <button data-id="${id}" class="toggle-reorder-btn text-xs px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold transition shrink-0">
+                Remove
+              </button>
+            </div>
           </div>
         `;
         reorderContainer.appendChild(row);
@@ -859,13 +859,13 @@
 
                 let cardHtml = `
                   <div data-id="${id}" class="expand-toggle p-3 sm:p-4 flex justify-between items-center cursor-pointer bg-slate-900/90 hover:bg-slate-800/70 transition">
-                    <div class="flex items-center gap-3">
-                      <span class="text-slate-500 text-xs">${isExpanded ? '▼' : '▶'}</span>
-                      ${photos.length > 0 ? `<img src="${photos[0]}" class="w-7 h-7 rounded object-cover border border-slate-700">` : ''}
-                      <span class="font-bold text-sm text-white">${item.name || 'Unnamed Material'}</span>
-                      ${isMarkedReorder ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-950/70 text-amber-300 border border-amber-700/60">Reorder</span>` : ''}
+                    <div class="flex items-center gap-3 min-w-0">
+                      <span class="text-slate-500 text-xs shrink-0">${isExpanded ? '▼' : '▶'}</span>
+                      ${photos.length > 0 ? `<img src="${photos[0]}" class="w-7 h-7 rounded object-cover border border-slate-700 shrink-0">` : ''}
+                      <span class="font-bold text-sm text-white truncate">${item.name || 'Unnamed Material'}</span>
+                      ${isMarkedReorder ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-950/70 text-amber-300 border border-amber-700/60 shrink-0">Reorder</span>` : ''}
                     </div>
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-3 shrink-0">
                       <span class="text-xs font-mono text-blue-400 font-semibold">${rateDisplay}</span>
                       <span class="text-xs text-slate-400 font-mono">Qty: ${qty}</span>
                     </div>
